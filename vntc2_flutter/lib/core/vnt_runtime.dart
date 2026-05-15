@@ -46,14 +46,18 @@ class VntRuntime {
     );
 
     unawaited(
-      _process!.stdout.transform(utf8.decoder).transform(const LineSplitter()).listen(
-        (_) {},
-      ).asFuture<void>(),
+      _process!.stdout
+          .transform(utf8.decoder)
+          .transform(const LineSplitter())
+          .listen((_) {})
+          .asFuture<void>(),
     );
     unawaited(
-      _process!.stderr.transform(utf8.decoder).transform(const LineSplitter()).listen(
-        (_) {},
-      ).asFuture<void>(),
+      _process!.stderr
+          .transform(utf8.decoder)
+          .transform(const LineSplitter())
+          .listen((_) {})
+          .asFuture<void>(),
     );
 
     _baseUri = await _waitForBaseUri();
@@ -88,9 +92,10 @@ class VntRuntime {
     if (profileIds.isEmpty) {
       return OperationResult.empty();
     }
-    final data = await _postForDataMap('/profiles/disconnect', <String, dynamic>{
-      'profileIds': profileIds,
-    });
+    final data = await _postForDataMap(
+      '/profiles/disconnect',
+      <String, dynamic>{'profileIds': profileIds},
+    );
     return OperationResult.fromJson(data);
   }
 
@@ -129,15 +134,20 @@ class VntRuntime {
       }
       await Future<void>.delayed(const Duration(milliseconds: 150));
     }
-    throw StateError('Rust Manager 启动超时');
+    throw StateError('manager_start_timeout');
   }
 
   Future<void> _ping(Uri baseUri) async {
     final client = HttpClient()..connectionTimeout = const Duration(seconds: 2);
     try {
-      final response = await (await client.getUrl(baseUri.resolve('/health'))).close();
+      final response = await (await client.getUrl(
+        baseUri.resolve('/health'),
+      )).close();
       if (response.statusCode != HttpStatus.ok) {
-        throw HttpException('Health check failed', uri: baseUri.resolve('/health'));
+        throw HttpException(
+          'Health check failed',
+          uri: baseUri.resolve('/health'),
+        );
       }
     } finally {
       client.close(force: true);
@@ -174,7 +184,7 @@ class VntRuntime {
   }) async {
     final baseUri = _baseUri;
     if (baseUri == null) {
-      throw StateError('Rust Manager 尚未就绪');
+      throw StateError('manager_not_ready');
     }
 
     final client = HttpClient()..connectionTimeout = const Duration(seconds: 3);
@@ -199,7 +209,7 @@ class VntRuntime {
       final decoded = jsonDecode(body) as Map<String, dynamic>;
       final code = decoded['code'] as int? ?? -1;
       if (code != 0) {
-        throw StateError(decoded['msg'] as String? ?? '请求失败');
+        throw StateError(decoded['msg'] as String? ?? 'request_failed');
       }
       return decoded;
     } finally {

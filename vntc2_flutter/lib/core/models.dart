@@ -1,4 +1,30 @@
+import 'dart:io';
+
 import 'dart:convert';
+
+enum AppLanguage { zhHans, en }
+
+extension AppLanguageX on AppLanguage {
+  String get value => switch (this) {
+    AppLanguage.zhHans => 'zh-Hans',
+    AppLanguage.en => 'en',
+  };
+
+  static AppLanguage fromValue(String? value) {
+    return AppLanguage.values.firstWhere(
+      (item) => item.value == value,
+      orElse: () => AppLanguage.zhHans,
+    );
+  }
+
+  static AppLanguage detectSystemDefault() {
+    final localeName = Platform.localeName.toLowerCase();
+    if (localeName.startsWith('en')) {
+      return AppLanguage.en;
+    }
+    return AppLanguage.zhHans;
+  }
+}
 
 enum CloseAction { close, tray, ask }
 
@@ -25,6 +51,7 @@ extension CloseActionX on CloseAction {
 
 class AppSettings {
   const AppSettings({
+    required this.language,
     required this.darkMode,
     required this.closeAction,
     required this.autoStart,
@@ -34,6 +61,7 @@ class AppSettings {
     this.defaultProfileId,
   });
 
+  final AppLanguage language;
   final bool darkMode;
   final CloseAction closeAction;
   final bool autoStart;
@@ -43,6 +71,7 @@ class AppSettings {
   final String? defaultProfileId;
 
   AppSettings copyWith({
+    AppLanguage? language,
     bool? darkMode,
     CloseAction? closeAction,
     bool? autoStart,
@@ -54,6 +83,7 @@ class AppSettings {
     bool clearDefaultProfileId = false,
   }) {
     return AppSettings(
+      language: language ?? this.language,
       darkMode: darkMode ?? this.darkMode,
       closeAction: closeAction ?? this.closeAction,
       autoStart: autoStart ?? this.autoStart,
@@ -71,6 +101,7 @@ class AppSettings {
 
   Map<String, dynamic> toJson() {
     return <String, dynamic>{
+      'language': language.value,
       'darkMode': darkMode,
       'closeAction': closeAction.value,
       'autoStart': autoStart,
@@ -83,6 +114,7 @@ class AppSettings {
 
   factory AppSettings.fromJson(Map<String, dynamic> json) {
     return AppSettings(
+      language: AppLanguageX.fromValue(json['language'] as String?),
       darkMode: json['darkMode'] as bool? ?? true,
       closeAction: CloseActionX.fromValue(json['closeAction'] as String?),
       autoStart: json['autoStart'] as bool? ?? false,
@@ -94,7 +126,8 @@ class AppSettings {
   }
 
   factory AppSettings.defaults() {
-    return const AppSettings(
+    return AppSettings(
+      language: AppLanguageX.detectSystemDefault(),
       darkMode: true,
       closeAction: CloseAction.close,
       autoStart: false,
@@ -424,8 +457,8 @@ class AggregatedPeer {
 
   factory AggregatedPeer.fromJson(Map<String, dynamic> json) {
     return AggregatedPeer(
-      peerName: json['peerName'] as String? ?? '未命名节点',
-      peerVirtualIp: json['peerVirtualIp'] as String? ?? '--',
+      peerName: json['peerName'] as String? ?? '',
+      peerVirtualIp: json['peerVirtualIp'] as String? ?? '',
       online: json['online'] as bool? ?? false,
       latencyMs: json['latencyMs'] as int?,
       sourceProfileId: json['sourceProfileId'] as String? ?? '',
@@ -445,7 +478,7 @@ class OperationFailure {
   factory OperationFailure.fromJson(Map<String, dynamic> json) {
     return OperationFailure(
       profileId: json['profileId'] as String? ?? '',
-      reason: json['reason'] as String? ?? '未知错误',
+      reason: json['reason'] as String? ?? '',
     );
   }
 }

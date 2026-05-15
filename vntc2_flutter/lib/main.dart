@@ -3,16 +3,20 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:tray_manager/tray_manager.dart';
 import 'package:window_manager/window_manager.dart';
 
 import 'core/dashboard_controller.dart';
+import 'core/localization.dart';
 import 'core/models.dart';
+import 'core/startup_manager.dart';
 
-Future<void> main() async {
+Future<void> main(List<String> args) async {
   WidgetsFlutterBinding.ensureInitialized();
   await windowManager.ensureInitialized();
   final controller = await DashboardController.create();
+  final launchContext = LaunchContext.fromArgs(args);
 
   windowManager.waitUntilReadyToShow(
     const WindowOptions(
@@ -24,7 +28,7 @@ Future<void> main() async {
       titleBarStyle: TitleBarStyle.normal,
     ),
     () async {
-      if (controller.settings.silentAutoStart) {
+      if (launchContext.shouldStartHidden(controller.settings)) {
         await windowManager.hide();
         await windowManager.setSkipTaskbar(true);
       } else {
@@ -62,7 +66,10 @@ class _VntcAppState extends State<VntcApp> {
       builder: (context, _) {
         return MaterialApp(
           debugShowCheckedModeBanner: false,
-          title: 'VNT虚拟组网2.0',
+          title: appTitleForLanguage(widget.controller.settings.language),
+          locale: localeForLanguage(widget.controller.settings.language),
+          supportedLocales: supportedAppLocales,
+          localizationsDelegates: GlobalMaterialLocalizations.delegates,
           theme: _buildTheme(Brightness.light),
           darkTheme: _buildTheme(Brightness.dark),
           themeMode: widget.controller.settings.darkMode
@@ -87,6 +94,7 @@ class DesktopShell extends StatefulWidget {
 class _DesktopShellState extends State<DesktopShell>
     with WindowListener, TrayListener {
   CloseAction? _lastCloseAction;
+  AppLanguage? _lastLanguage;
   bool _isQuitting = false;
   bool _trayInitialized = false;
 
@@ -107,6 +115,7 @@ class _DesktopShellState extends State<DesktopShell>
 
   Future<void> _initDesktopShell() async {
     await _syncCloseBehavior();
+    await _syncWindowTitle();
     await _initTray();
   }
 
@@ -123,22 +132,55 @@ class _DesktopShellState extends State<DesktopShell>
     if (iconPath != null) {
       await trayManager.setIcon(iconPath);
     }
-    await trayManager.setToolTip('VNT虚拟组网2.0');
-    await trayManager.setContextMenu(_buildTrayMenu());
+    await _syncTrayPresentation();
     _trayInitialized = true;
   }
 
+  Future<void> _syncTrayPresentation() async {
+    final language = widget.controller.settings.language;
+    await trayManager.setToolTip(appTitleForLanguage(language));
+    await trayManager.setContextMenu(_buildTrayMenu());
+  }
+
+  Future<void> _syncWindowTitle() async {
+    await windowManager.setTitle(
+      appTitleForLanguage(widget.controller.settings.language),
+    );
+  }
+
   Menu _buildTrayMenu() {
+    final language = widget.controller.settings.language;
     return Menu(
       items: [
-        MenuItem(key: 'show_window', label: '显示主窗口'),
-        MenuItem(key: 'connect_checked', label: '连接勾选配置'),
-        MenuItem(key: 'disconnect_checked', label: '断开勾选配置'),
-        MenuItem(key: 'open_settings', label: '打开设置'),
-        MenuItem(key: 'toggle_theme', label: '切换深浅主题'),
-        MenuItem(key: 'connect_default', label: '连接默认配置'),
+        MenuItem(
+          key: 'show_window',
+          label: trByLanguage(language, '显示主窗口', 'Show window'),
+        ),
+        MenuItem(
+          key: 'connect_checked',
+          label: trByLanguage(language, '连接勾选配置', 'Connect selected'),
+        ),
+        MenuItem(
+          key: 'disconnect_checked',
+          label: trByLanguage(language, '断开勾选配置', 'Disconnect selected'),
+        ),
+        MenuItem(
+          key: 'open_settings',
+          label: trByLanguage(language, '打开设置', 'Open settings'),
+        ),
+        MenuItem(
+          key: 'toggle_theme',
+          label: trByLanguage(language, '切换深浅主题', 'Toggle theme'),
+        ),
+        MenuItem(
+          key: 'connect_default',
+          label: trByLanguage(language, '连接默认配置', 'Connect default'),
+        ),
         MenuItem.separator(),
-        MenuItem(key: 'exit_app', label: '退出程序'),
+        MenuItem(
+          key: 'exit_app',
+          label: trByLanguage(language, '退出程序', 'Exit app'),
+        ),
       ],
     );
   }
@@ -195,7 +237,9 @@ class _DesktopShellState extends State<DesktopShell>
     if (!mounted) {
       return;
     }
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
   }
 
   Future<CloseAction?> _askCloseAction() async {
@@ -206,21 +250,28 @@ class _DesktopShellState extends State<DesktopShell>
       context: context,
       builder: (dialogContext) {
         return AlertDialog(
-          title: const Text('关闭窗口'),
-          content: const Text('请选择本次关闭窗口时的操作。'),
+          title: Text(tr(context, '关闭窗口', 'Close window')),
+          content: Text(
+            tr(
+              context,
+              '请选择本次关闭窗口时的操作。',
+              'Choose what should happen when closing the window.',
+            ),
+          ),
           actions: [
             TextButton(
               onPressed: () => Navigator.of(dialogContext).pop(null),
-              child: const Text('取消'),
+              child: Text(tr(context, '取消', 'Cancel')),
             ),
             TextButton(
-              onPressed: () => Navigator.of(dialogContext).pop(CloseAction.tray),
-              child: const Text('最小化到托盘'),
+              onPressed: () =>
+                  Navigator.of(dialogContext).pop(CloseAction.tray),
+              child: Text(tr(context, '最小化到托盘', 'Minimize to tray')),
             ),
             FilledButton(
               onPressed: () =>
                   Navigator.of(dialogContext).pop(CloseAction.close),
-              child: const Text('关闭程序'),
+              child: Text(tr(context, '关闭程序', 'Close app')),
             ),
           ],
         );
@@ -272,7 +323,12 @@ class _DesktopShellState extends State<DesktopShell>
         final defaultProfileId = widget.controller.settings.defaultProfileId;
         if (defaultProfileId == null) {
           await _restoreWindow();
-          await _showInfoMessage('当前未设置默认配置');
+          if (!mounted) {
+            return;
+          }
+          await _showInfoMessage(
+            tr(context, '当前未设置默认配置', 'No default profile is configured'),
+          );
           return;
         }
         await widget.controller.connectProfiles(<String>[defaultProfileId]);
@@ -311,9 +367,17 @@ class _DesktopShellState extends State<DesktopShell>
   @override
   Widget build(BuildContext context) {
     final closeAction = widget.controller.settings.closeAction;
+    final language = widget.controller.settings.language;
     if (_lastCloseAction != closeAction) {
       _lastCloseAction = closeAction;
       unawaited(_syncCloseBehavior());
+    }
+    if (_lastLanguage != language) {
+      _lastLanguage = language;
+      unawaited(_syncWindowTitle());
+      if (_trayInitialized) {
+        unawaited(_syncTrayPresentation());
+      }
     }
     return DashboardPage(controller: widget.controller);
   }
@@ -372,6 +436,7 @@ class _DashboardPageState extends State<DashboardPage> {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
     final isDark = theme.brightness == Brightness.dark;
+    String t(String zhHans, String en) => tr(context, zhHans, en);
     final selectedProfile = controller.selectedProfile;
     final onlinePeers = controller.peers.where((peer) => peer.online).toList();
     final offlinePeers = controller.peers
@@ -414,7 +479,7 @@ class _DashboardPageState extends State<DashboardPage> {
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
                           Text(
-                            'VNT虚拟组网2.0',
+                            t('VNT虚拟组网2.0', 'VNTC 2.0 Client'),
                             style: theme.textTheme.headlineMedium?.copyWith(
                               fontWeight: FontWeight.w800,
                               letterSpacing: 1.2,
@@ -424,8 +489,14 @@ class _DashboardPageState extends State<DashboardPage> {
                           const SizedBox(height: 4),
                           Text(
                             controller.vntExecutablePath == null
-                                ? '未发现 vnt2_cli.exe'
-                                : 'Rust Manager + 唯一虚拟网卡绑定配置',
+                                ? t(
+                                    '未发现 vnt2_cli.exe',
+                                    'vnt2_cli.exe not found',
+                                  )
+                                : t(
+                                    'Rust Manager + 唯一虚拟网卡绑定配置',
+                                    'Rust Manager + dedicated adapter per profile',
+                                  ),
                             style: theme.textTheme.bodyMedium?.copyWith(
                               color: colorScheme.onSurface.withValues(
                                 alpha: 0.70,
@@ -448,7 +519,7 @@ class _DashboardPageState extends State<DashboardPage> {
                           children: [
                             Expanded(
                               child: _MetricTile(
-                                label: '已连接配置',
+                                label: t('已连接配置', 'Connected Profiles'),
                                 value:
                                     '${controller.summary.connectedProfileCount}/${controller.summary.checkedProfileCount}',
                               ),
@@ -456,7 +527,7 @@ class _DashboardPageState extends State<DashboardPage> {
                             const SizedBox(width: 8),
                             Expanded(
                               child: _MetricTile(
-                                label: '在线/离线',
+                                label: t('在线/离线', 'Online/Offline'),
                                 value:
                                     '${controller.summary.totalOnlineCount}/${controller.summary.totalOfflineCount}',
                               ),
@@ -464,7 +535,7 @@ class _DashboardPageState extends State<DashboardPage> {
                             const SizedBox(width: 8),
                             Expanded(
                               child: _MetricTile(
-                                label: '汇总网速',
+                                label: t('汇总网速', 'Aggregate Speed'),
                                 value:
                                     '↑ ${formatSpeed(controller.summary.aggregateUploadBytesPerSecond)}  ↓ ${formatSpeed(controller.summary.aggregateDownloadBytesPerSecond)}',
                               ),
@@ -472,7 +543,7 @@ class _DashboardPageState extends State<DashboardPage> {
                             const SizedBox(width: 8),
                             Expanded(
                               child: _MetricTile(
-                                label: '汇总流量',
+                                label: t('汇总流量', 'Aggregate Traffic'),
                                 value:
                                     '↑ ${formatBytes(controller.summary.aggregateTotalTxBytes)}  ↓ ${formatBytes(controller.summary.aggregateTotalRxBytes)}',
                               ),
@@ -480,8 +551,9 @@ class _DashboardPageState extends State<DashboardPage> {
                             const SizedBox(width: 8),
                             Expanded(
                               child: _MetricTile(
-                                label: '整体状态',
+                                label: t('整体状态', 'Overall Status'),
                                 value: formatOverallStatus(
+                                  context,
                                   controller.summary.overallStatus,
                                 ),
                               ),
@@ -500,14 +572,17 @@ class _DashboardPageState extends State<DashboardPage> {
                             Row(
                               children: [
                                 Text(
-                                  '配置列表',
+                                  t('配置列表', 'Profiles'),
                                   style: theme.textTheme.titleMedium?.copyWith(
                                     fontWeight: FontWeight.w700,
                                   ),
                                 ),
                                 const Spacer(),
                                 Text(
-                                  '保存配置时自动分配唯一虚拟网卡',
+                                  t(
+                                    '保存配置时自动分配唯一虚拟网卡',
+                                    'A dedicated virtual adapter is assigned on save',
+                                  ),
                                   style: theme.textTheme.bodySmall?.copyWith(
                                     color: colorScheme.onSurface.withValues(
                                       alpha: 0.65,
@@ -519,7 +594,10 @@ class _DashboardPageState extends State<DashboardPage> {
                             const SizedBox(height: 10),
                             if (controller.profileSnapshots.isEmpty)
                               Text(
-                                '还没有配置，点击右下角 + 创建',
+                                t(
+                                  '还没有配置，点击右下角 + 创建',
+                                  'No profiles yet. Click + to create one.',
+                                ),
                                 style: theme.textTheme.bodyMedium?.copyWith(
                                   color: colorScheme.onSurface.withValues(
                                     alpha: 0.65,
@@ -552,8 +630,11 @@ class _DashboardPageState extends State<DashboardPage> {
                                 Expanded(
                                   child: Text(
                                     selectedProfile == null
-                                        ? '当前没有焦点配置'
-                                        : '焦点配置 ${selectedProfile.name} · 网卡 ${selectedProfile.tunName} · 控制端口 ${selectedProfile.ctrlPort}',
+                                        ? t('当前没有焦点配置', 'No profile selected')
+                                        : t(
+                                            '焦点配置 ${selectedProfile.name} · 网卡 ${selectedProfile.tunName} · 控制端口 ${selectedProfile.ctrlPort}',
+                                            'Selected ${selectedProfile.name} · Adapter ${selectedProfile.tunName} · Ctrl Port ${selectedProfile.ctrlPort}',
+                                          ),
                                     style: theme.textTheme.bodySmall?.copyWith(
                                       color: colorScheme.onSurface.withValues(
                                         alpha: 0.70,
@@ -568,7 +649,7 @@ class _DashboardPageState extends State<DashboardPage> {
                                     controller,
                                     null,
                                   ),
-                                  child: const Text('添加配置'),
+                                  child: Text(t('添加配置', 'Add Profile')),
                                 ),
                                 TextButton(
                                   onPressed: selectedProfile == null
@@ -578,13 +659,13 @@ class _DashboardPageState extends State<DashboardPage> {
                                           controller,
                                           selectedProfile,
                                         ),
-                                  child: const Text('编辑配置'),
+                                  child: Text(t('编辑配置', 'Edit Profile')),
                                 ),
                                 TextButton(
                                   onPressed: selectedProfile == null
                                       ? null
                                       : controller.deleteSelectedProfile,
-                                  child: const Text('删除配置'),
+                                  child: Text(t('删除配置', 'Delete Profile')),
                                 ),
                               ],
                             ),
@@ -603,13 +684,13 @@ class _DashboardPageState extends State<DashboardPage> {
                               Row(
                                 children: [
                                   Text(
-                                    '在线 / 离线用户',
+                                    t('在线 / 离线用户', 'Online / Offline Peers'),
                                     style: theme.textTheme.titleMedium
                                         ?.copyWith(fontWeight: FontWeight.w700),
                                   ),
                                   const Spacer(),
                                   _PeerTabButton(
-                                    label: '在线',
+                                    label: t('在线', 'Online'),
                                     count: onlinePeers.length,
                                     selected: selectedPeerTab == PeerTab.online,
                                     activeColor: const Color(0xFF1DAA7A),
@@ -619,7 +700,7 @@ class _DashboardPageState extends State<DashboardPage> {
                                   ),
                                   const SizedBox(width: 8),
                                   _PeerTabButton(
-                                    label: '离线',
+                                    label: t('离线', 'Offline'),
                                     count: offlinePeers.length,
                                     selected:
                                         selectedPeerTab == PeerTab.offline,
@@ -636,12 +717,18 @@ class _DashboardPageState extends State<DashboardPage> {
                                   children: [
                                     _PeerSection(
                                       title: selectedPeerTab == PeerTab.online
-                                          ? '在线用户'
-                                          : '离线用户',
+                                          ? t('在线用户', 'Online Peers')
+                                          : t('离线用户', 'Offline Peers'),
                                       emptyHint:
                                           selectedPeerTab == PeerTab.online
-                                          ? '当前没有在线节点'
-                                          : '当前没有离线节点',
+                                          ? t(
+                                              '当前没有在线节点',
+                                              'No online peers right now',
+                                            )
+                                          : t(
+                                              '当前没有离线节点',
+                                              'No offline peers right now',
+                                            ),
                                       peers: displayedPeers,
                                     ),
                                   ],
@@ -664,8 +751,10 @@ class _DashboardPageState extends State<DashboardPage> {
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
                                   _StatusBadge(
-                                    label:
-                                        '运行 ${controller.summary.runningProfileCount}',
+                                    label: t(
+                                      '运行 ${controller.summary.runningProfileCount}',
+                                      'Running ${controller.summary.runningProfileCount}',
+                                    ),
                                     color:
                                         controller.summary.runningProfileCount >
                                             0
@@ -777,6 +866,7 @@ class _ProfileCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
+    String t(String zhHans, String en) => tr(context, zhHans, en);
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(18),
@@ -817,7 +907,10 @@ class _ProfileCard extends StatelessWidget {
                           ),
                         ),
                         _StatusBadge(
-                          label: formatProfileStatus(snapshot.runtime.status),
+                          label: formatProfileStatus(
+                            context,
+                            snapshot.runtime.status,
+                          ),
                           color: snapshot.runtime.running
                               ? const Color(0xFF1DAA7A)
                               : const Color(0xFF6D7D91),
@@ -826,7 +919,10 @@ class _ProfileCard extends StatelessWidget {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      '${snapshot.profile.server}  ·  网卡 ${snapshot.profile.tunName}',
+                      t(
+                        '${snapshot.profile.server}  ·  网卡 ${snapshot.profile.tunName}',
+                        '${snapshot.profile.server}  ·  Adapter ${snapshot.profile.tunName}',
+                      ),
                       style: theme.textTheme.bodySmall?.copyWith(
                         color: colorScheme.onSurface.withValues(alpha: 0.65),
                       ),
@@ -845,21 +941,21 @@ class _ProfileCard extends StatelessWidget {
                   runSpacing: 6,
                   children: [
                     _InlineFact(
-                      label: '虚拟IP',
+                      label: t('虚拟IP', 'Virtual IP'),
                       value: snapshot.runtime.virtualIp ?? '--',
                     ),
                     _InlineFact(
-                      label: '在线/离线',
+                      label: t('在线/离线', 'Online/Offline'),
                       value:
                           '${snapshot.runtime.onlineCount}/${snapshot.runtime.offlineCount}',
                     ),
                     _InlineFact(
-                      label: '网速',
+                      label: t('网速', 'Speed'),
                       value:
                           '↑ ${formatSpeed(snapshot.runtime.uploadBytesPerSecond)} ↓ ${formatSpeed(snapshot.runtime.downloadBytesPerSecond)}',
                     ),
                     _InlineFact(
-                      label: '流量',
+                      label: t('流量', 'Traffic'),
                       value:
                           '↑ ${formatBytes(snapshot.runtime.totalTxBytes)} ↓ ${formatBytes(snapshot.runtime.totalRxBytes)}',
                     ),
@@ -1083,6 +1179,7 @@ class _PeerSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
+    final language = appLanguageOf(context);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -1135,7 +1232,9 @@ class _PeerSection extends StatelessWidget {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              peer.peerName,
+                              peer.peerName.isEmpty
+                                  ? defaultPeerName(language)
+                                  : peer.peerName,
                               style: Theme.of(context).textTheme.titleSmall
                                   ?.copyWith(fontWeight: FontWeight.w700),
                             ),
@@ -1144,7 +1243,9 @@ class _PeerSection extends StatelessWidget {
                               mainAxisSize: MainAxisSize.min,
                               children: [
                                 Text(
-                                  peer.peerVirtualIp,
+                                  peer.peerVirtualIp.isEmpty
+                                      ? '--'
+                                      : peer.peerVirtualIp,
                                   style: Theme.of(context).textTheme.bodySmall
                                       ?.copyWith(
                                         color: colorScheme.onSurface.withValues(
@@ -1154,12 +1255,20 @@ class _PeerSection extends StatelessWidget {
                                       ),
                                 ),
                                 const SizedBox(width: 6),
-                                _CopyPeerIpButton(ip: peer.peerVirtualIp),
+                                _CopyPeerIpButton(
+                                  ip: peer.peerVirtualIp.isEmpty
+                                      ? '--'
+                                      : peer.peerVirtualIp,
+                                ),
                               ],
                             ),
                             const SizedBox(height: 4),
                             Text(
-                              '配置 ${peer.sourceProfileName}  ·  本机虚拟IP ${peer.sourceProfileVirtualIp ?? '--'}',
+                              tr(
+                                context,
+                                '配置 ${peer.sourceProfileName}  ·  本机虚拟IP ${peer.sourceProfileVirtualIp ?? '--'}',
+                                'Profile ${peer.sourceProfileName}  ·  Local Virtual IP ${peer.sourceProfileVirtualIp ?? '--'}',
+                              ),
                               style: Theme.of(context).textTheme.bodySmall
                                   ?.copyWith(
                                     color: colorScheme.onSurface.withValues(
@@ -1173,9 +1282,9 @@ class _PeerSection extends StatelessWidget {
                       Text(
                         peer.online
                             ? (peer.latencyMs == null
-                                  ? '在线'
+                                  ? tr(context, '在线', 'Online')
                                   : '${peer.latencyMs} ms')
-                            : '离线',
+                            : tr(context, '离线', 'Offline'),
                         style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                           color: peer.online
                               ? const Color(0xFF1DAA7A)
@@ -1243,9 +1352,11 @@ class _CopyPeerIpButton extends StatelessWidget {
         if (!context.mounted) {
           return;
         }
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('已复制虚拟IP $ip')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(tr(context, '已复制虚拟IP $ip', 'Copied virtual IP $ip')),
+          ),
+        );
       },
       child: Padding(
         padding: const EdgeInsets.all(2),
@@ -1361,9 +1472,13 @@ Future<void> _showProfileEditor(
   if (!context.mounted) {
     return;
   }
-  ScaffoldMessenger.of(
-    context,
-  ).showSnackBar(SnackBar(content: Text('已保存配置 ${result.name}')));
+  ScaffoldMessenger.of(context).showSnackBar(
+    SnackBar(
+      content: Text(
+        tr(context, '已保存配置 ${result.name}', 'Saved profile ${result.name}'),
+      ),
+    ),
+  );
 }
 
 Future<void> _showSettings(
@@ -1383,29 +1498,29 @@ Future<void> _showSettings(
   await controller.saveSettings(result);
 }
 
-String formatOverallStatus(String raw) {
+String formatOverallStatus(BuildContext context, String raw) {
   switch (raw) {
     case 'running':
-      return '运行中';
+      return tr(context, '运行中', 'Running');
     case 'partial':
-      return '部分运行';
+      return tr(context, '部分运行', 'Partially Running');
     case 'starting':
-      return '启动中';
+      return tr(context, '启动中', 'Starting');
     case 'stopped':
-      return '已停止';
+      return tr(context, '已停止', 'Stopped');
     default:
       return '--';
   }
 }
 
-String formatProfileStatus(String raw) {
+String formatProfileStatus(BuildContext context, String raw) {
   switch (raw) {
     case 'running':
-      return '运行';
+      return tr(context, '运行', 'Running');
     case 'starting':
-      return '启动中';
+      return tr(context, '启动中', 'Starting');
     case 'stopped':
-      return '停止';
+      return tr(context, '停止', 'Stopped');
     default:
       return '--';
   }
@@ -1508,9 +1623,7 @@ class _ProfileEditorDialogState extends State<_ProfileEditorDialog> {
   @override
   void initState() {
     super.initState();
-    nameController = TextEditingController(
-      text: widget.profile?.name ?? '测试组网 a',
-    );
+    nameController = TextEditingController(text: widget.profile?.name ?? '');
     serverController = TextEditingController(
       text: widget.profile?.server ?? 'quic://115.231.35.105:2225',
     );
@@ -1599,8 +1712,13 @@ class _ProfileEditorDialogState extends State<_ProfileEditorDialog> {
 
   @override
   Widget build(BuildContext context) {
+    String t(String zhHans, String en) => tr(context, zhHans, en);
     return AlertDialog(
-      title: Text(widget.profile == null ? '新建配置' : '编辑配置'),
+      title: Text(
+        widget.profile == null
+            ? t('新建配置', 'New Profile')
+            : t('编辑配置', 'Edit Profile'),
+      ),
       content: SizedBox(
         width: 440,
         child: SingleChildScrollView(
@@ -1609,30 +1727,42 @@ class _ProfileEditorDialogState extends State<_ProfileEditorDialog> {
             children: [
               TextField(
                 controller: nameController,
-                decoration: _inputDecoration(context, hintText: '显示名称'),
+                decoration: _inputDecoration(
+                  context,
+                  hintText: t('显示名称', 'Display name'),
+                ),
               ),
               const SizedBox(height: 12),
               TextField(
                 controller: serverController,
                 decoration: _inputDecoration(
                   context,
-                  hintText: '服务端地址，如 quic://115.231.35.105:2225',
+                  hintText: t(
+                    '服务端地址，如 quic://115.231.35.105:2225',
+                    'Server address, e.g. quic://115.231.35.105:2225',
+                  ),
                 ),
               ),
               const SizedBox(height: 12),
               TextField(
                 controller: networkCodeController,
-                decoration: _inputDecoration(context, hintText: '组网编号'),
+                decoration: _inputDecoration(
+                  context,
+                  hintText: t('组网编号', 'Network code'),
+                ),
               ),
               const SizedBox(height: 12),
               TextField(
                 controller: deviceNameController,
-                decoration: _inputDecoration(context, hintText: '设备名称'),
+                decoration: _inputDecoration(
+                  context,
+                  hintText: t('设备名称', 'Device name'),
+                ),
               ),
               SwitchListTile(
                 contentPadding: EdgeInsets.zero,
                 value: rtx,
-                title: const Text('启用 QUIC 优化传输'),
+                title: Text(t('启用 QUIC 优化传输', 'Enable QUIC acceleration')),
                 onChanged: (value) => setState(() => rtx = value),
               ),
               const SizedBox(height: 8),
@@ -1647,15 +1777,21 @@ class _ProfileEditorDialogState extends State<_ProfileEditorDialog> {
                   onExpansionChanged: (value) =>
                       setState(() => advancedExpanded = value),
                   title: Text(
-                    '高级配置',
+                    t('高级配置', 'Advanced Settings'),
                     style: Theme.of(context).textTheme.titleSmall?.copyWith(
                       fontWeight: FontWeight.w700,
                     ),
                   ),
                   subtitle: Text(
                     widget.profile == null
-                        ? '默认折叠，展开后可配置全部 vnt2 进阶参数'
-                        : '可查看并调整进阶参数，唯一网卡/端口仍自动管理',
+                        ? t(
+                            '默认折叠，展开后可配置全部 vnt2 进阶参数',
+                            'Collapsed by default. Expand to edit advanced vnt2 options.',
+                          )
+                        : t(
+                            '可查看并调整进阶参数，唯一网卡/端口仍自动管理',
+                            'Review and adjust advanced options while keeping adapter and port allocation automatic.',
+                          ),
                     style: Theme.of(context).textTheme.bodySmall,
                   ),
                   children: [
@@ -1663,7 +1799,10 @@ class _ProfileEditorDialogState extends State<_ProfileEditorDialog> {
                       alignment: Alignment.centerLeft,
                       child: Text(
                         widget.profile == null
-                            ? '保存后自动生成唯一 device_id / tun_name / ctrl_port'
+                            ? t(
+                                '保存后自动生成唯一 device_id / tun_name / ctrl_port',
+                                'A unique device_id / tun_name / ctrl_port will be generated after saving.',
+                              )
                             : 'device_id: ${widget.profile!.deviceId}\ntun_name: ${widget.profile!.tunName}\nctrl_port: ${widget.profile!.ctrlPort}',
                         style: Theme.of(context).textTheme.bodySmall?.copyWith(
                           color: Theme.of(
@@ -1677,7 +1816,10 @@ class _ProfileEditorDialogState extends State<_ProfileEditorDialog> {
                       controller: customIpController,
                       decoration: _inputDecoration(
                         context,
-                        hintText: '自定义虚拟IP，例如 10.10.0.2',
+                        hintText: t(
+                          '自定义虚拟IP，例如 10.10.0.2',
+                          'Custom virtual IP, e.g. 10.10.0.2',
+                        ),
                       ),
                     ),
                     const SizedBox(height: 12),
@@ -1685,7 +1827,7 @@ class _ProfileEditorDialogState extends State<_ProfileEditorDialog> {
                       controller: passwordController,
                       decoration: _inputDecoration(
                         context,
-                        hintText: '加密密码，可选',
+                        hintText: t('加密密码，可选', 'Encryption password, optional'),
                       ),
                     ),
                     const SizedBox(height: 12),
@@ -1693,7 +1835,10 @@ class _ProfileEditorDialogState extends State<_ProfileEditorDialog> {
                       controller: certModeController,
                       decoration: _inputDecoration(
                         context,
-                        hintText: '证书模式，例如 skip / standard / finger:xxxx',
+                        hintText: t(
+                          '证书模式，例如 skip / standard / finger:xxxx',
+                          'Certificate mode, e.g. skip / standard / finger:xxxx',
+                        ),
                       ),
                     ),
                     const SizedBox(height: 12),
@@ -1701,38 +1846,42 @@ class _ProfileEditorDialogState extends State<_ProfileEditorDialog> {
                       controller: mtuController,
                       decoration: _inputDecoration(
                         context,
-                        hintText: 'MTU，例如 1400',
+                        hintText: t('MTU，例如 1400', 'MTU, e.g. 1400'),
                       ),
                     ),
                     const SizedBox(height: 12),
                     SwitchListTile(
                       contentPadding: EdgeInsets.zero,
                       value: compress,
-                      title: const Text('启用压缩'),
+                      title: Text(t('启用压缩', 'Enable compression')),
                       onChanged: (value) => setState(() => compress = value),
                     ),
                     SwitchListTile(
                       contentPadding: EdgeInsets.zero,
                       value: fec,
-                      title: const Text('启用 FEC'),
+                      title: Text(t('启用 FEC', 'Enable FEC')),
                       onChanged: (value) => setState(() => fec = value),
                     ),
                     SwitchListTile(
                       contentPadding: EdgeInsets.zero,
                       value: noPunch,
-                      title: const Text('关闭 P2P 打洞'),
+                      title: Text(t('关闭 P2P 打洞', 'Disable P2P hole punching')),
                       onChanged: (value) => setState(() => noPunch = value),
                     ),
                     SwitchListTile(
                       contentPadding: EdgeInsets.zero,
                       value: noNat,
-                      title: const Text('关闭内置子网 NAT'),
+                      title: Text(
+                        t('关闭内置子网 NAT', 'Disable built-in subnet NAT'),
+                      ),
                       onChanged: (value) => setState(() => noNat = value),
                     ),
                     SwitchListTile(
                       contentPadding: EdgeInsets.zero,
                       value: allowMapping,
-                      title: const Text('允许作为端口映射出口'),
+                      title: Text(
+                        t('允许作为端口映射出口', 'Allow as port-mapping egress'),
+                      ),
                       onChanged: (value) =>
                           setState(() => allowMapping = value),
                     ),
@@ -1743,7 +1892,10 @@ class _ProfileEditorDialogState extends State<_ProfileEditorDialog> {
                       maxLines: 4,
                       decoration: _inputDecoration(
                         context,
-                        hintText: '入栈监听网段，每行一条\n例如 192.168.0.0/24,10.26.0.2',
+                        hintText: t(
+                          '入栈监听网段，每行一条\n例如 192.168.0.0/24,10.26.0.2',
+                          'Inbound routes, one per line\nFor example 192.168.0.0/24,10.26.0.2',
+                        ),
                       ),
                     ),
                     const SizedBox(height: 12),
@@ -1753,7 +1905,10 @@ class _ProfileEditorDialogState extends State<_ProfileEditorDialog> {
                       maxLines: 4,
                       decoration: _inputDecoration(
                         context,
-                        hintText: '出栈允许网段，每行一条\n例如 0.0.0.0/0',
+                        hintText: t(
+                          '出栈允许网段，每行一条\n例如 0.0.0.0/0',
+                          'Outbound routes, one per line\nFor example 0.0.0.0/0',
+                        ),
                       ),
                     ),
                     const SizedBox(height: 12),
@@ -1763,8 +1918,10 @@ class _ProfileEditorDialogState extends State<_ProfileEditorDialog> {
                       maxLines: 4,
                       decoration: _inputDecoration(
                         context,
-                        hintText:
-                            '端口映射，每行一条\n例如 tcp://0.0.0.0:81-10.0.0.2-10.0.0.2:80',
+                        hintText: t(
+                          '端口映射，每行一条\n例如 tcp://0.0.0.0:81-10.0.0.2-10.0.0.2:80',
+                          'Port mappings, one per line\nFor example tcp://0.0.0.0:81-10.0.0.2-10.0.0.2:80',
+                        ),
                       ),
                     ),
                     const SizedBox(height: 12),
@@ -1774,7 +1931,10 @@ class _ProfileEditorDialogState extends State<_ProfileEditorDialog> {
                       maxLines: 4,
                       decoration: _inputDecoration(
                         context,
-                        hintText: 'UDP STUN 地址，每行一条',
+                        hintText: t(
+                          'UDP STUN 地址，每行一条',
+                          'UDP STUN servers, one per line',
+                        ),
                       ),
                     ),
                     const SizedBox(height: 12),
@@ -1784,7 +1944,10 @@ class _ProfileEditorDialogState extends State<_ProfileEditorDialog> {
                       maxLines: 4,
                       decoration: _inputDecoration(
                         context,
-                        hintText: 'TCP STUN 地址，每行一条',
+                        hintText: t(
+                          'TCP STUN 地址，每行一条',
+                          'TCP STUN servers, one per line',
+                        ),
                       ),
                     ),
                   ],
@@ -1797,7 +1960,7 @@ class _ProfileEditorDialogState extends State<_ProfileEditorDialog> {
       actions: [
         TextButton(
           onPressed: () => Navigator.of(context).pop(),
-          child: const Text('取消'),
+          child: Text(t('取消', 'Cancel')),
         ),
         FilledButton(
           onPressed: () {
@@ -1832,7 +1995,7 @@ class _ProfileEditorDialogState extends State<_ProfileEditorDialog> {
               ),
             );
           },
-          child: const Text('保存'),
+          child: Text(t('保存', 'Save')),
         ),
       ],
     );
@@ -1850,6 +2013,7 @@ class _SettingsDialog extends StatefulWidget {
 }
 
 class _SettingsDialogState extends State<_SettingsDialog> {
+  late AppLanguage language;
   late CloseAction closeAction;
   late bool autoStart;
   late bool silentAutoStart;
@@ -1859,6 +2023,7 @@ class _SettingsDialogState extends State<_SettingsDialog> {
   @override
   void initState() {
     super.initState();
+    language = widget.settings.language;
     closeAction = widget.settings.closeAction;
     autoStart = widget.settings.autoStart;
     silentAutoStart = widget.settings.silentAutoStart;
@@ -1868,22 +2033,51 @@ class _SettingsDialogState extends State<_SettingsDialog> {
 
   @override
   Widget build(BuildContext context) {
+    String t(String zhHans, String en) {
+      return trByLanguage(language, zhHans, en);
+    }
+
     return AlertDialog(
-      title: const Text('设置'),
+      title: Text(t('设置', 'Settings')),
       content: SizedBox(
         width: 440,
         child: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
+              DropdownButtonFormField<AppLanguage>(
+                initialValue: language,
+                decoration: _inputDecoration(
+                  context,
+                  hintText: t('界面语言', 'Language'),
+                ),
+                items: AppLanguage.values
+                    .map(
+                      (item) => DropdownMenuItem<AppLanguage>(
+                        value: item,
+                        child: Text(languageDisplayName(item)),
+                      ),
+                    )
+                    .toList(),
+                onChanged: (value) {
+                  if (value == null) {
+                    return;
+                  }
+                  setState(() => language = value);
+                },
+              ),
+              const SizedBox(height: 12),
               DropdownButtonFormField<CloseAction>(
                 initialValue: closeAction,
-                decoration: _inputDecoration(context, hintText: '关闭动作'),
+                decoration: _inputDecoration(
+                  context,
+                  hintText: t('关闭动作', 'Close behavior'),
+                ),
                 items: CloseAction.values
                     .map(
                       (item) => DropdownMenuItem<CloseAction>(
                         value: item,
-                        child: Text(item.label),
+                        child: Text(formatCloseActionLabel(item, language)),
                       ),
                     )
                     .toList(),
@@ -1897,7 +2091,10 @@ class _SettingsDialogState extends State<_SettingsDialog> {
               const SizedBox(height: 12),
               DropdownButtonFormField<String>(
                 initialValue: defaultProfileId,
-                decoration: _inputDecoration(context, hintText: '默认配置'),
+                decoration: _inputDecoration(
+                  context,
+                  hintText: t('默认配置', 'Default profile'),
+                ),
                 items: widget.profiles
                     .map(
                       (profile) => DropdownMenuItem<String>(
@@ -1912,25 +2109,33 @@ class _SettingsDialogState extends State<_SettingsDialog> {
               SwitchListTile(
                 contentPadding: EdgeInsets.zero,
                 value: autoStart,
-                title: const Text('开机自启'),
+                title: Text(t('开机自启', 'Auto-start with Windows')),
                 onChanged: (value) => setState(() => autoStart = value),
               ),
               SwitchListTile(
                 contentPadding: EdgeInsets.zero,
                 value: silentAutoStart,
-                title: const Text('静默自启'),
+                title: Text(t('静默自启', 'Start silently')),
                 onChanged: (value) => setState(() => silentAutoStart = value),
               ),
               SwitchListTile(
                 contentPadding: EdgeInsets.zero,
                 value: connectDefaultOnLaunch,
-                title: const Text('启动后连接默认配置或勾选配置'),
+                title: Text(
+                  t(
+                    '启动后连接默认配置或勾选配置',
+                    'Connect default or selected profiles on launch',
+                  ),
+                ),
                 onChanged: (value) =>
                     setState(() => connectDefaultOnLaunch = value),
               ),
               const SizedBox(height: 10),
               Text(
-                '当前版本已实现托盘最小化、Manager 调度、多配置勾选持久化和唯一网卡绑定。开机自启的系统级挂接仍保留在下一步。',
+                t(
+                  '开启“开机自启”后会写入当前 Windows 用户启动项；“静默自启”仅在系统自动拉起时隐藏主窗口，手动启动仍会正常显示。',
+                  'Enabling auto-start writes a Run entry for the current Windows user. "Start silently" hides the main window only when the app is started by the system; manual launches still open normally.',
+                ),
                 style: Theme.of(context).textTheme.bodySmall,
               ),
             ],
@@ -1940,12 +2145,13 @@ class _SettingsDialogState extends State<_SettingsDialog> {
       actions: [
         TextButton(
           onPressed: () => Navigator.of(context).pop(),
-          child: const Text('取消'),
+          child: Text(t('取消', 'Cancel')),
         ),
         FilledButton(
           onPressed: () {
             Navigator.of(context).pop(
               widget.settings.copyWith(
+                language: language,
                 closeAction: closeAction,
                 autoStart: autoStart,
                 silentAutoStart: silentAutoStart,
@@ -1954,7 +2160,7 @@ class _SettingsDialogState extends State<_SettingsDialog> {
               ),
             );
           },
-          child: const Text('保存'),
+          child: Text(t('保存', 'Save')),
         ),
       ],
     );

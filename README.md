@@ -2,6 +2,8 @@
 
 一个基于 `Flutter Windows + Rust Manager + vnt2_cli` 的 VNT 2.0 桌面客户端。
 
+English introduction: [README_EN.md](README_EN.md)
+
 项目目标是提供一个更适合日常使用的 Windows 图形界面，支持：
 
 - 多配置管理
@@ -9,6 +11,7 @@
 - 勾选多个配置后批量连接 / 断开
 - 在线 / 离线用户列表查看
 - 高级配置折叠编辑
+- 中文简体 / English 界面切换
 - 托盘最小化与快捷菜单
 
 ## 软件首页

@@ -1,9 +1,12 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 
+import 'localization.dart';
 import 'models.dart';
 import 'repository.dart';
+import 'startup_manager.dart';
 import 'vnt_runtime.dart';
 
 class DashboardController extends ChangeNotifier {
@@ -12,6 +15,7 @@ class DashboardController extends ChangeNotifier {
     required this.settings,
     required this.vntExecutablePath,
     required this.managerExecutablePath,
+    required this.autoStartManager,
   }) {
     if (managerExecutablePath != null && vntExecutablePath != null) {
       runtime = VntRuntime(
@@ -25,6 +29,7 @@ class DashboardController extends ChangeNotifier {
   final AppRepository repository;
   final String? vntExecutablePath;
   final String? managerExecutablePath;
+  final WindowsAutoStartManager autoStartManager;
   VntRuntime? runtime;
 
   AppSettings settings;
@@ -49,6 +54,9 @@ class DashboardController extends ChangeNotifier {
       settings: settings,
       vntExecutablePath: await repository.paths.findVntCliExecutable(),
       managerExecutablePath: await repository.paths.findManagerExecutable(),
+      autoStartManager: WindowsAutoStartManager(
+        executablePath: Platform.resolvedExecutable,
+      ),
     );
     await controller._bootstrap();
     return controller;
@@ -100,12 +108,20 @@ class DashboardController extends ChangeNotifier {
 
   String get connectButtonLabel {
     if (!hasCheckedProfiles) {
-      return '勾选后连接';
+      return _t('勾选后连接', 'Select profiles to connect');
     }
-    return allCheckedProfilesRunning ? '断开勾选配置' : '连接勾选配置';
+    return allCheckedProfilesRunning
+        ? _t('断开勾选配置', 'Disconnect selected')
+        : _t('连接勾选配置', 'Connect selected');
   }
 
   Future<void> _bootstrap() async {
+    try {
+      await autoStartManager.sync(settings);
+    } catch (error) {
+      errorMessage = _describeError(error);
+    }
+
     final initialProfiles = await repository.loadProfiles();
     selectedProfileId =
         settings.selectedProfileId ??
@@ -114,7 +130,10 @@ class DashboardController extends ChangeNotifier {
 
     if (runtime == null) {
       isLoading = false;
-      errorMessage = '未找到 vntc_manager.exe 或 vnt2_cli.exe。';
+      errorMessage = _t(
+        '未找到 vntc_manager.exe 或 vnt2_cli.exe。',
+        'vntc_manager.exe or vnt2_cli.exe was not found.',
+      );
       notifyListeners();
       return;
     }
@@ -171,7 +190,8 @@ class DashboardController extends ChangeNotifier {
       errorMessage = null;
       notifyListeners();
     } catch (error) {
-      errorMessage = '刷新状态失败：$error';
+      errorMessage =
+          '${_t('刷新状态失败', 'Failed to refresh status')}: ${_describeError(error)}';
       notifyListeners();
     }
   }
@@ -183,8 +203,15 @@ class DashboardController extends ChangeNotifier {
   }
 
   Future<void> saveSettings(AppSettings updated) async {
-    settings = updated;
-    await repository.saveSettings(settings);
+    try {
+      await autoStartManager.sync(updated);
+      await repository.saveSettings(updated);
+      settings = updated;
+      errorMessage = null;
+    } catch (error) {
+      errorMessage =
+          '${_t('保存设置失败', 'Failed to save settings')}: ${_describeError(error)}';
+    }
     notifyListeners();
   }
 
@@ -217,13 +244,13 @@ class DashboardController extends ChangeNotifier {
   }) async {
     final runtime = this.runtime;
     if (runtime == null) {
-      errorMessage = 'Rust Manager 未就绪';
+      errorMessage = _t('Rust Manager 未就绪', 'Rust Manager is not ready');
       notifyListeners();
       return;
     }
     if (profileIds.isEmpty) {
       if (!silent) {
-        errorMessage = '请先勾选至少一个配置';
+        errorMessage = _t('请先勾选至少一个配置', 'Select at least one profile first');
         notifyListeners();
       }
       return;
@@ -241,8 +268,11 @@ class DashboardController extends ChangeNotifier {
       await refreshAll();
       if (result.hasFailure) {
         errorMessage = result.failed
-            .map((item) => '${item.profileId}: ${item.reason}')
-            .join('；');
+            .map(
+              (item) =>
+                  '${item.profileId}: ${item.reason.isEmpty ? defaultOperationReason(settings.language) : item.reason}',
+            )
+            .join('; ');
       }
     } finally {
       isBusy = false;
@@ -260,7 +290,7 @@ class DashboardController extends ChangeNotifier {
         .map((profile) => profile.id)
         .toList();
     if (ids.isEmpty) {
-      errorMessage = '请先勾选至少一个配置';
+      errorMessage = _t('请先勾选至少一个配置', 'Select at least one profile first');
       notifyListeners();
       return;
     }
@@ -274,8 +304,11 @@ class DashboardController extends ChangeNotifier {
       await refreshAll();
       if (result.hasFailure) {
         errorMessage = result.failed
-            .map((item) => '${item.profileId}: ${item.reason}')
-            .join('；');
+            .map(
+              (item) =>
+                  '${item.profileId}: ${item.reason.isEmpty ? defaultOperationReason(settings.language) : item.reason}',
+            )
+            .join('; ');
       }
     } finally {
       isBusy = false;
@@ -421,6 +454,36 @@ class DashboardController extends ChangeNotifier {
       return null;
     }
     return trimmed;
+  }
+
+  String _t(String zhHans, String en) {
+    return trByLanguage(settings.language, zhHans, en);
+  }
+
+  String _describeError(Object error) {
+    final detail = _extractErrorDetail(error);
+    return switch (detail) {
+      'manager_start_timeout' => _t(
+        'Rust Manager 启动超时',
+        'Rust Manager startup timed out',
+      ),
+      'manager_not_ready' => _t(
+        'Rust Manager 尚未就绪',
+        'Rust Manager is not ready',
+      ),
+      'request_failed' => _t('请求失败', 'Request failed'),
+      _ => detail,
+    };
+  }
+
+  String _extractErrorDetail(Object error) {
+    if (error is StateError) {
+      return error.message.toString().trim();
+    }
+    if (error is HttpException) {
+      return error.message.trim();
+    }
+    return error.toString().trim();
   }
 
   @override
