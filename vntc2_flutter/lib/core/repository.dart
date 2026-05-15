@@ -191,42 +191,11 @@ class AppRepository {
       return;
     }
 
-    final now = DateTime.now().toIso8601String();
-    final defaultProfile = VntProfile(
-      id: 'live-a',
-      name: '测试组网 a',
-      server: 'quic://115.231.35.105:2225',
-      networkCode: 'a',
-      deviceId: buildDeviceId('live-a'),
-      deviceName: 'vntc-live-a',
-      ctrlPort: 11241,
-      tunName: buildTunName('live-a'),
-      noTun: false,
-      rtx: true,
-      customIp: null,
-      password: null,
-      certMode: null,
-      compress: false,
-      fec: false,
-      noPunch: false,
-      noNat: false,
-      mtu: null,
-      allowMapping: false,
-      inputRoutes: const <String>[],
-      outputRoutes: const <String>[],
-      portMappings: const <String>[],
-      udpStunServers: const <String>[],
-      tcpStunServers: const <String>[],
-      createdAtIso: now,
-      checked: false,
-    );
-    await saveProfile(defaultProfile);
-
     final current = await loadSettings();
     await saveSettings(
       current.copyWith(
-        selectedProfileId: defaultProfile.id,
-        defaultProfileId: defaultProfile.id,
+        clearSelectedProfileId: true,
+        clearDefaultProfileId: true,
       ),
     );
   }

@@ -8,6 +8,7 @@ test-vnt-a.toml
 
 # Local runtime / release artifacts
 dist/
+release-artifacts/
 logs/
 vnt_config/
 vnt_current_config.txt
