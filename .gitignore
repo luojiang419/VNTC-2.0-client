@@ -1,0 +1,31 @@
+# Local planning / helper files
+SKILL.md
+需求.md
+Vntc2.0执行方案.md
+run_flutter_create.cmd
+run_flutter_project.cmd
+test-vnt-a.toml
+
+# Local runtime / release artifacts
+dist/
+logs/
+vnt_config/
+vnt_current_config.txt
+
+# Flutter generated files
+**/.dart_tool/
+**/build/
+**/.idea/
+**/windows/flutter/ephemeral/
+**/.flutter-plugins-dependencies
+**/*.iml
+
+# Rust build output
+vnt-2.0.0/target/
+
+# Runtime leftovers
+**/PORT
+**/vntc_manager.port
+**/vnt_current_config.txt
+**/data/runtime/
+**/data/logs/
