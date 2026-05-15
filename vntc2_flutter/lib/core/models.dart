@@ -11,18 +11,21 @@ extension AppLanguageX on AppLanguage {
   };
 
   static AppLanguage fromValue(String? value) {
+    if (value == null || value.trim().isEmpty) {
+      return detectSystemDefault();
+    }
     return AppLanguage.values.firstWhere(
       (item) => item.value == value,
-      orElse: () => AppLanguage.zhHans,
+      orElse: detectSystemDefault,
     );
   }
 
   static AppLanguage detectSystemDefault() {
     final localeName = Platform.localeName.toLowerCase();
-    if (localeName.startsWith('en')) {
-      return AppLanguage.en;
+    if (localeName.startsWith('zh')) {
+      return AppLanguage.zhHans;
     }
-    return AppLanguage.zhHans;
+    return AppLanguage.en;
   }
 }
 
