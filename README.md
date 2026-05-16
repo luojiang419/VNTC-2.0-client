@@ -2,7 +2,9 @@
 
 一个基于 `Flutter Windows + Rust Manager + vnt2_cli` 的 VNT 2.0 桌面客户端。
 
-English introduction: [README_EN.md](README_EN.md)
+Language:
+- 中文：当前页面
+- English: [README_EN.md](README_EN.md)
 
 项目目标是提供一个更适合日常使用的 Windows 图形界面，支持：
 
@@ -13,6 +15,20 @@ English introduction: [README_EN.md](README_EN.md)
 - 高级配置折叠编辑
 - 中文简体 / English 界面切换
 - 托盘最小化与快捷菜单
+
+## 国际用户说明
+
+国际用户可直接查看英文版介绍：
+
+- [README_EN.md](README_EN.md)
+
+英文版包含：
+
+- 项目简介
+- 功能特性
+- 界面语言切换说明
+- 构建与运行说明
+- Release 下载入口
 
 ## 软件首页
 
