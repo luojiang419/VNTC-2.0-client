@@ -99,6 +99,14 @@ class VntRuntime {
     return OperationResult.fromJson(data);
   }
 
+  Future<TunAdapterCleanupResult> cleanupUnusedTunAdapters() async {
+    final data = await _postForDataMap(
+      '/adapters/cleanup-unused',
+      const <String, dynamic>{},
+    );
+    return TunAdapterCleanupResult.fromJson(data);
+  }
+
   Future<void> dispose() async {
     try {
       if (_baseUri != null) {

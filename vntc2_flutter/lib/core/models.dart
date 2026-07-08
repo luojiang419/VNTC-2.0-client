@@ -60,6 +60,7 @@ class AppSettings {
     required this.autoStart,
     required this.silentAutoStart,
     required this.connectDefaultOnLaunch,
+    required this.cleanupUnusedTunOnLaunch,
     this.selectedProfileId,
     this.defaultProfileId,
   });
@@ -70,6 +71,7 @@ class AppSettings {
   final bool autoStart;
   final bool silentAutoStart;
   final bool connectDefaultOnLaunch;
+  final bool cleanupUnusedTunOnLaunch;
   final String? selectedProfileId;
   final String? defaultProfileId;
 
@@ -80,6 +82,7 @@ class AppSettings {
     bool? autoStart,
     bool? silentAutoStart,
     bool? connectDefaultOnLaunch,
+    bool? cleanupUnusedTunOnLaunch,
     String? selectedProfileId,
     String? defaultProfileId,
     bool clearSelectedProfileId = false,
@@ -93,6 +96,8 @@ class AppSettings {
       silentAutoStart: silentAutoStart ?? this.silentAutoStart,
       connectDefaultOnLaunch:
           connectDefaultOnLaunch ?? this.connectDefaultOnLaunch,
+      cleanupUnusedTunOnLaunch:
+          cleanupUnusedTunOnLaunch ?? this.cleanupUnusedTunOnLaunch,
       selectedProfileId: clearSelectedProfileId
           ? null
           : selectedProfileId ?? this.selectedProfileId,
@@ -110,6 +115,7 @@ class AppSettings {
       'autoStart': autoStart,
       'silentAutoStart': silentAutoStart,
       'connectDefaultOnLaunch': connectDefaultOnLaunch,
+      'cleanupUnusedTunOnLaunch': cleanupUnusedTunOnLaunch,
       'selectedProfileId': selectedProfileId,
       'defaultProfileId': defaultProfileId,
     };
@@ -123,6 +129,8 @@ class AppSettings {
       autoStart: json['autoStart'] as bool? ?? false,
       silentAutoStart: json['silentAutoStart'] as bool? ?? false,
       connectDefaultOnLaunch: json['connectDefaultOnLaunch'] as bool? ?? true,
+      cleanupUnusedTunOnLaunch:
+          json['cleanupUnusedTunOnLaunch'] as bool? ?? false,
       selectedProfileId: json['selectedProfileId'] as String?,
       defaultProfileId: json['defaultProfileId'] as String?,
     );
@@ -136,6 +144,7 @@ class AppSettings {
       autoStart: false,
       silentAutoStart: false,
       connectDefaultOnLaunch: true,
+      cleanupUnusedTunOnLaunch: false,
     );
   }
 }
@@ -527,6 +536,52 @@ class OperationResult {
       disconnectedIds: <String>[],
       skippedIds: <String>[],
       failed: <OperationFailure>[],
+    );
+  }
+}
+
+class TunAdapterCleanupSkipped {
+  const TunAdapterCleanupSkipped({required this.name, required this.reason});
+
+  final String name;
+  final String reason;
+
+  factory TunAdapterCleanupSkipped.fromJson(Map<String, dynamic> json) {
+    return TunAdapterCleanupSkipped(
+      name: json['name'] as String? ?? '',
+      reason: json['reason'] as String? ?? '',
+    );
+  }
+}
+
+class TunAdapterCleanupResult {
+  const TunAdapterCleanupResult({
+    required this.cleaned,
+    required this.kept,
+    required this.skipped,
+    required this.unsupported,
+  });
+
+  final List<String> cleaned;
+  final List<String> kept;
+  final List<TunAdapterCleanupSkipped> skipped;
+  final bool unsupported;
+
+  int get cleanedCount => cleaned.length;
+  int get keptCount => kept.length;
+  int get skippedCount => skipped.length;
+
+  factory TunAdapterCleanupResult.fromJson(Map<String, dynamic> json) {
+    return TunAdapterCleanupResult(
+      cleaned: (json['cleaned'] as List<dynamic>? ?? const <dynamic>[])
+          .cast<String>(),
+      kept: (json['kept'] as List<dynamic>? ?? const <dynamic>[])
+          .cast<String>(),
+      skipped: (json['skipped'] as List<dynamic>? ?? const <dynamic>[])
+          .cast<Map<String, dynamic>>()
+          .map(TunAdapterCleanupSkipped.fromJson)
+          .toList(),
+      unsupported: json['unsupported'] as bool? ?? false,
     );
   }
 }

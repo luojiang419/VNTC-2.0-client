@@ -1,23 +1,21 @@
-# VNTC 2.0 Client v1.1.1
+# VNTC 2.0 Client v1.1.3
 
-This patch release fixes the default language behavior so the UI follows the operating system language on first launch and for upgraded settings files that do not yet contain an explicit language value.
+This patch release adds a safer maintenance option for cleaning unused VNTC virtual TUN adapters and rebuilds the Windows distributable package.
 
 ## What’s New
 
-- Added a language selector in the settings page
-- Added full Simplified Chinese / English UI switching
-- Translated the main dashboard, tray menu, dialogs, profile editor, and settings page into English
-- Kept Windows auto-start and silent startup behavior compatible with the new language settings
-- Fixed default language detection:
-  - Chinese systems default to Simplified Chinese
-  - Non-Chinese systems default to English
-  - Upgraded settings files without a saved `language` field now follow the system language automatically
+- Added a Settings switch for automatically cleaning unused TUN virtual adapters on launch
+- Runs a one-time cleanup immediately when the switch is first enabled and saved
+- Limits cleanup to VNTC-managed `vntc-*` adapters that are no longer referenced by saved profiles
+- Keeps adapters referenced by current profiles and skips adapters that are currently `Up`
+- Rebuilt the Windows x64 portable package and installer for this update
 
 ## Included Capabilities
 
 - Flutter Windows + Rust Manager + vnt2_cli architecture
 - Multi-profile management with batch connect / disconnect
 - Automatic unique `tun_name`, `ctrl_port`, and `device_id` allocation per profile
+- Automatic cleanup option for unused VNTC-managed TUN adapters
 - Aggregated online / offline peer view
 - Advanced vnt2 profile editing
 - Tray minimize, close behavior selection, and tray shortcut menu
@@ -25,5 +23,5 @@ This patch release fixes the default language behavior so the UI follows the ope
 
 ## Release Assets
 
-- `VNTC-2.0-client-v1.1.1-setup.exe`: Windows installer
-- `VNTC-2.0-client-v1.1.1-win-x64.zip`: portable Windows package
+- `VNTC-2.0-client-v1.1.3-setup.exe`: Windows installer
+- `VNTC-2.0-client-v1.1.3-win-x64.zip`: portable Windows package
