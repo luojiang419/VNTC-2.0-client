@@ -24,9 +24,54 @@ use tokio_util::codec::{Framed, LengthDelimitedCodec};
 use vnt_ipc::message::ipc_request::IpcCmd;
 use vnt_ipc::message::ipc_response::ResponsePayload;
 use vnt_ipc::message::{
-    AppInfo, AppInfoCmd, ClientInfoList, ClientListCmd, IpcRequest, IpcResponse,
-    TrafficInfoList, TrafficListCmd,
+    AppInfo, AppInfoCmd, ClientInfoList, ClientListCmd, IpcRequest, IpcResponse, TrafficInfoList,
+    TrafficListCmd,
 };
+
+#[cfg(windows)]
+const CLEANUP_UNUSED_TUN_ADAPTERS_PS: &str = r#"
+$ErrorActionPreference = 'Stop'
+$result = [ordered]@{
+    cleaned = @()
+    kept = @()
+    skipped = @()
+    unsupported = $false
+}
+$keep = @{}
+if ($env:VNTC_KEEP_TUN_NAMES) {
+    foreach ($name in @($env:VNTC_KEEP_TUN_NAMES | ConvertFrom-Json)) {
+        if ($null -ne $name -and $name.ToString().Trim().Length -gt 0) {
+            $keep[$name.ToString().ToLowerInvariant()] = $true
+        }
+    }
+}
+$netAdapters = @(Get-NetAdapter -IncludeHidden -ErrorAction SilentlyContinue)
+$devices = @(Get-PnpDevice -Class Net -ErrorAction SilentlyContinue | Where-Object {
+    $_.FriendlyName -like 'vntc-*'
+})
+foreach ($device in $devices) {
+    $name = [string]$device.FriendlyName
+    if ($keep.ContainsKey($name.ToLowerInvariant())) {
+        $result.kept += $name
+        continue
+    }
+    $net = $netAdapters | Where-Object { $_.Name -eq $name } | Select-Object -First 1
+    if ($null -ne $net -and $net.Status -eq 'Up') {
+        $result.skipped += [ordered]@{ name = $name; reason = 'adapter is Up' }
+        continue
+    }
+    $removeOutput = & pnputil /remove-device $device.InstanceId 2>&1
+    if ($LASTEXITCODE -eq 0) {
+        $result.cleaned += $name
+    } else {
+        $result.skipped += [ordered]@{
+            name = $name
+            reason = (($removeOutput | Out-String).Trim())
+        }
+    }
+}
+$result | ConvertTo-Json -Depth 5 -Compress
+"#;
 
 #[derive(Parser, Debug)]
 #[command(author, version, about)]
@@ -185,6 +230,22 @@ struct OperationFailure {
     reason: String,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct TunAdapterCleanupSkipped {
+    name: String,
+    reason: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct TunAdapterCleanupResult {
+    cleaned: Vec<String>,
+    kept: Vec<String>,
+    skipped: Vec<TunAdapterCleanupSkipped>,
+    unsupported: bool,
+}
+
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     let args = Args::parse();
@@ -211,6 +272,10 @@ async fn main() -> anyhow::Result<()> {
         .route("/profiles", get(get_profiles))
         .route("/profiles/connect", post(connect_profiles))
         .route("/profiles/disconnect", post(disconnect_profiles))
+        .route(
+            "/adapters/cleanup-unused",
+            post(cleanup_unused_tun_adapters),
+        )
         .route("/peers", get(get_peers))
         .route("/internal/shutdown", post(shutdown_manager))
         .with_state(state.clone());
@@ -274,6 +339,15 @@ async fn disconnect_profiles(
     Json(req): Json<ProfileActionRequest>,
 ) -> Json<ApiResponse<OperationResult>> {
     match state.disconnect_profiles(req.profile_ids) {
+        Ok(result) => Json(ApiResponse::success(result)),
+        Err(error) => Json(ApiResponse::error(error.to_string())),
+    }
+}
+
+async fn cleanup_unused_tun_adapters(
+    State(state): State<AppState>,
+) -> Json<ApiResponse<TunAdapterCleanupResult>> {
+    match state.cleanup_unused_tun_adapters() {
         Ok(result) => Json(ApiResponse::success(result)),
         Err(error) => Json(ApiResponse::error(error.to_string())),
     }
@@ -429,10 +503,10 @@ impl AppState {
 
             match child {
                 Ok(child) => {
-                    self.inner.lock().sessions.insert(
-                        profile.id.clone(),
-                        ManagedSession { child },
-                    );
+                    self.inner
+                        .lock()
+                        .sessions
+                        .insert(profile.id.clone(), ManagedSession { child });
                     result.connected_ids.push(profile.id.clone());
                 }
                 Err(error) => {
@@ -489,6 +563,66 @@ impl AppState {
         let _ = self.disconnect_profiles(ids);
     }
 
+    fn cleanup_unused_tun_adapters(&self) -> anyhow::Result<TunAdapterCleanupResult> {
+        self.cleanup_exited_sessions();
+        #[cfg(windows)]
+        {
+            return self.cleanup_unused_tun_adapters_windows();
+        }
+        #[cfg(not(windows))]
+        {
+            Ok(TunAdapterCleanupResult {
+                cleaned: Vec::new(),
+                kept: Vec::new(),
+                skipped: Vec::new(),
+                unsupported: true,
+            })
+        }
+    }
+
+    #[cfg(windows)]
+    fn cleanup_unused_tun_adapters_windows(&self) -> anyhow::Result<TunAdapterCleanupResult> {
+        let keep_names = self
+            .load_profiles()?
+            .into_iter()
+            .filter_map(|profile| {
+                let name = profile.tun_name.trim().to_string();
+                if name.is_empty() { None } else { Some(name) }
+            })
+            .collect::<Vec<String>>();
+        let keep_names_json =
+            serde_json::to_string(&keep_names).context("serialize keep tun names failed")?;
+
+        let output = Command::new("powershell.exe")
+            .args([
+                "-NoProfile",
+                "-NonInteractive",
+                "-ExecutionPolicy",
+                "Bypass",
+                "-Command",
+                CLEANUP_UNUSED_TUN_ADAPTERS_PS,
+            ])
+            .env("VNTC_KEEP_TUN_NAMES", keep_names_json)
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .output()
+            .context("run adapter cleanup failed")?;
+
+        if !output.status.success() {
+            let stderr = String::from_utf8_lossy(&output.stderr);
+            return Err(anyhow!("adapter cleanup failed: {}", stderr.trim()));
+        }
+
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        let json_line = stdout
+            .lines()
+            .rev()
+            .map(str::trim)
+            .find(|line| line.starts_with('{'))
+            .ok_or_else(|| anyhow!("adapter cleanup did not return JSON"))?;
+        serde_json::from_str(json_line).context("parse adapter cleanup result failed")
+    }
+
     async fn build_profile_snapshots(&self) -> anyhow::Result<Vec<ManagedProfileSnapshot>> {
         self.cleanup_exited_sessions();
         let profiles = self.load_profiles()?;
@@ -516,9 +650,7 @@ impl AppState {
                 Ok(info) => info,
                 Err(_) => continue,
             };
-            let peer_virtual_ip = app_info
-                .ip
-                .map(|value| Ipv4Addr::from(value).to_string());
+            let peer_virtual_ip = app_info.ip.map(|value| Ipv4Addr::from(value).to_string());
             let client_list = match ipc_client_list(profile.ctrl_port).await {
                 Ok(list) => list,
                 Err(_) => continue,
@@ -666,7 +798,9 @@ fn build_dashboard_summary(snapshots: &[ManagedProfileSnapshot]) -> DashboardSum
 
     let overall_status = if running_profile_count == 0 {
         "stopped"
-    } else if snapshots.iter().any(|item| item.runtime.status == "starting")
+    } else if snapshots
+        .iter()
+        .any(|item| item.runtime.status == "starting")
         || (checked_profile_count > 0 && running_profile_count < checked_profile_count)
     {
         "partial"

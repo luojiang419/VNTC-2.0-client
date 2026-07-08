@@ -1485,6 +1485,7 @@ Future<void> _showSettings(
   BuildContext context,
   DashboardController controller,
 ) async {
+  final cleanupWasEnabled = controller.settings.cleanupUnusedTunOnLaunch;
   final result = await showDialog<AppSettings>(
     context: context,
     builder: (context) => _SettingsDialog(
@@ -1496,6 +1497,23 @@ Future<void> _showSettings(
     return;
   }
   await controller.saveSettings(result);
+  final shouldRunCleanup =
+      result.cleanupUnusedTunOnLaunch &&
+      !cleanupWasEnabled &&
+      controller.settings.cleanupUnusedTunOnLaunch;
+  if (!shouldRunCleanup) {
+    return;
+  }
+
+  final cleanupResult = await controller.cleanupUnusedTunAdapters();
+  if (!context.mounted || cleanupResult == null) {
+    return;
+  }
+  ScaffoldMessenger.of(context).showSnackBar(
+    SnackBar(
+      content: Text(formatTunAdapterCleanupResult(context, cleanupResult)),
+    ),
+  );
 }
 
 String formatOverallStatus(BuildContext context, String raw) {
@@ -1543,6 +1561,38 @@ String formatBytes(int bytes) {
 
 String formatSpeed(int bytesPerSecond) {
   return '${formatBytes(bytesPerSecond)}/s';
+}
+
+String formatTunAdapterCleanupResult(
+  BuildContext context,
+  TunAdapterCleanupResult result,
+) {
+  if (result.unsupported) {
+    return tr(
+      context,
+      '当前系统不支持自动清理 TUN 虚拟网卡',
+      'Automatic TUN adapter cleanup is not supported on this system',
+    );
+  }
+  if (result.cleanedCount == 0 && result.skippedCount == 0) {
+    return tr(
+      context,
+      '未发现需要清理的无用 TUN 虚拟网卡',
+      'No unused TUN adapters were found',
+    );
+  }
+  if (result.cleanedCount == 0) {
+    return tr(
+      context,
+      '未删除网卡，已跳过 ${result.skippedCount} 个正在使用或无法删除的网卡',
+      'No adapters were deleted. Skipped ${result.skippedCount} active or protected adapters',
+    );
+  }
+  return tr(
+    context,
+    '已清理 ${result.cleanedCount} 个无用 TUN 虚拟网卡，保留 ${result.keptCount} 个配置网卡',
+    'Cleaned ${result.cleanedCount} unused TUN adapters and kept ${result.keptCount} configured adapters',
+  );
 }
 
 class _ProfileDraft {
@@ -2018,6 +2068,7 @@ class _SettingsDialogState extends State<_SettingsDialog> {
   late bool autoStart;
   late bool silentAutoStart;
   late bool connectDefaultOnLaunch;
+  late bool cleanupUnusedTunOnLaunch;
   String? defaultProfileId;
 
   @override
@@ -2028,6 +2079,7 @@ class _SettingsDialogState extends State<_SettingsDialog> {
     autoStart = widget.settings.autoStart;
     silentAutoStart = widget.settings.silentAutoStart;
     connectDefaultOnLaunch = widget.settings.connectDefaultOnLaunch;
+    cleanupUnusedTunOnLaunch = widget.settings.cleanupUnusedTunOnLaunch;
     defaultProfileId = widget.settings.defaultProfileId;
   }
 
@@ -2130,11 +2182,23 @@ class _SettingsDialogState extends State<_SettingsDialog> {
                 onChanged: (value) =>
                     setState(() => connectDefaultOnLaunch = value),
               ),
+              SwitchListTile(
+                contentPadding: EdgeInsets.zero,
+                value: cleanupUnusedTunOnLaunch,
+                title: Text(
+                  t(
+                    '自动清理无用 TUN 虚拟网卡',
+                    'Automatically clean unused TUN adapters',
+                  ),
+                ),
+                onChanged: (value) =>
+                    setState(() => cleanupUnusedTunOnLaunch = value),
+              ),
               const SizedBox(height: 10),
               Text(
                 t(
-                  '开启“开机自启”后会写入当前 Windows 用户启动项；“静默自启”仅在系统自动拉起时隐藏主窗口，手动启动仍会正常显示。',
-                  'Enabling auto-start writes a Run entry for the current Windows user. "Start silently" hides the main window only when the app is started by the system; manual launches still open normally.',
+                  '开启“开机自启”后会写入当前 Windows 用户启动项；“静默自启”仅在系统自动拉起时隐藏主窗口，手动启动仍会正常显示。“自动清理”只处理本客户端生成且未被配置引用的 vntc-* 网卡。',
+                  'Enabling auto-start writes a Run entry for the current Windows user. "Start silently" hides the main window only when the app is started by the system; manual launches still open normally. Automatic cleanup only handles vntc-* adapters created by this client and no longer referenced by profiles.',
                 ),
                 style: Theme.of(context).textTheme.bodySmall,
               ),
@@ -2156,6 +2220,7 @@ class _SettingsDialogState extends State<_SettingsDialog> {
                 autoStart: autoStart,
                 silentAutoStart: silentAutoStart,
                 connectDefaultOnLaunch: connectDefaultOnLaunch,
+                cleanupUnusedTunOnLaunch: cleanupUnusedTunOnLaunch,
                 defaultProfileId: defaultProfileId,
               ),
             );

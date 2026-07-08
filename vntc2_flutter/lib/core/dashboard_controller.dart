@@ -139,6 +139,9 @@ class DashboardController extends ChangeNotifier {
     }
 
     await runtime!.start();
+    if (settings.cleanupUnusedTunOnLaunch) {
+      await cleanupUnusedTunAdapters(silent: true);
+    }
     await refreshAll();
 
     if (settings.connectDefaultOnLaunch) {
@@ -313,6 +316,47 @@ class DashboardController extends ChangeNotifier {
     } finally {
       isBusy = false;
       notifyListeners();
+    }
+  }
+
+  Future<TunAdapterCleanupResult?> cleanupUnusedTunAdapters({
+    bool silent = false,
+  }) async {
+    final runtime = this.runtime;
+    if (runtime == null) {
+      if (!silent) {
+        errorMessage = _t('Rust Manager 未就绪', 'Rust Manager is not ready');
+        notifyListeners();
+      }
+      return null;
+    }
+
+    if (!silent) {
+      isBusy = true;
+      errorMessage = null;
+      notifyListeners();
+    }
+
+    try {
+      final result = await runtime.cleanupUnusedTunAdapters();
+      if (result.unsupported && !silent) {
+        errorMessage = _t(
+          '当前系统不支持自动清理 TUN 虚拟网卡',
+          'Automatic TUN adapter cleanup is not supported on this system',
+        );
+      }
+      return result;
+    } catch (error) {
+      if (!silent) {
+        errorMessage =
+            '${_t('清理 TUN 网卡失败', 'Failed to clean TUN adapters')}: ${_describeError(error)}';
+      }
+      return null;
+    } finally {
+      if (!silent) {
+        isBusy = false;
+        notifyListeners();
+      }
     }
   }
 

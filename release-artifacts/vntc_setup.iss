@@ -1,5 +1,5 @@
 #define MyAppName "VNTC 2.0 Client"
-#define MyAppVersion "1.1.2"
+#define MyAppVersion "1.1.3"
 #define MyAppPublisher "luojiang419"
 #define MyAppURL "https://github.com/luojiang419/VNTC-2.0-client"
 #define MyAppExeName "vntc2_flutter.exe"
@@ -18,7 +18,7 @@ DefaultDirName={autopf}\VNTC 2.0 Client
 DefaultGroupName=VNTC 2.0 Client
 AllowNoIcons=yes
 OutputDir={#MyOutDir}
-OutputBaseFilename=VNTC-2.0-client-v1.1.2-setup
+OutputBaseFilename=VNTC-2.0-client-v1.1.3-setup
 Compression=lzma2
 SolidCompression=yes
 WizardStyle=modern
