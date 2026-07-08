@@ -1,17 +1,12 @@
-# VNTC 2.0 Client v1.1.1
+# VNTC 2.0 Client v1.1.2
 
-This patch release fixes the default language behavior so the UI follows the operating system language on first launch and for upgraded settings files that do not yet contain an explicit language value.
+This patch release refreshes the Windows application icon and rebuilds the distributable package so users can update to the new branded version.
 
 ## What’s New
 
-- Added a language selector in the settings page
-- Added full Simplified Chinese / English UI switching
-- Translated the main dashboard, tray menu, dialogs, profile editor, and settings page into English
-- Kept Windows auto-start and silent startup behavior compatible with the new language settings
-- Fixed default language detection:
-  - Chinese systems default to Simplified Chinese
-  - Non-Chinese systems default to English
-  - Upgraded settings files without a saved `language` field now follow the system language automatically
+- Added a new minimalist Windows app icon with a V-shaped network mark
+- Updated the executable and installer icon resources
+- Rebuilt the Windows x64 portable package and installer
 
 ## Included Capabilities
 
@@ -25,5 +20,5 @@ This patch release fixes the default language behavior so the UI follows the ope
 
 ## Release Assets
 
-- `VNTC-2.0-client-v1.1.1-setup.exe`: Windows installer
-- `VNTC-2.0-client-v1.1.1-win-x64.zip`: portable Windows package
+- `VNTC-2.0-client-v1.1.2-setup.exe`: Windows installer
+- `VNTC-2.0-client-v1.1.2-win-x64.zip`: portable Windows package
