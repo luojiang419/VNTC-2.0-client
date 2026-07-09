@@ -11,6 +11,9 @@ import 'core/dashboard_controller.dart';
 import 'core/localization.dart';
 import 'core/models.dart';
 import 'core/startup_manager.dart';
+import 'features/updater/application/updater_controller.dart';
+import 'features/updater/data/updater_service.dart';
+import 'features/updater/domain/update_models.dart';
 
 Future<void> main(List<String> args) async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -95,6 +98,8 @@ class _DesktopShellState extends State<DesktopShell>
     with WindowListener, TrayListener {
   CloseAction? _lastCloseAction;
   AppLanguage? _lastLanguage;
+  late final UpdaterController _updaterController;
+  String? _lastUpdatePromptKey;
   bool _isQuitting = false;
   bool _trayInitialized = false;
 
@@ -103,11 +108,19 @@ class _DesktopShellState extends State<DesktopShell>
     super.initState();
     windowManager.addListener(this);
     trayManager.addListener(this);
+    _updaterController = UpdaterController(
+      dashboardController: widget.controller,
+      service: UpdaterService(paths: widget.controller.repository.paths),
+    );
+    _updaterController.addListener(_handleUpdaterChanged);
+    unawaited(_updaterController.beginStartupFlow());
     unawaited(_initDesktopShell());
   }
 
   @override
   void dispose() {
+    _updaterController.removeListener(_handleUpdaterChanged);
+    _updaterController.dispose();
     windowManager.removeListener(this);
     trayManager.removeListener(this);
     super.dispose();
@@ -167,6 +180,10 @@ class _DesktopShellState extends State<DesktopShell>
         MenuItem(
           key: 'open_settings',
           label: trByLanguage(language, '打开设置', 'Open settings'),
+        ),
+        MenuItem(
+          key: 'check_updates',
+          label: trByLanguage(language, '检查更新', 'Check for updates'),
         ),
         MenuItem(
           key: 'toggle_theme',
@@ -240,6 +257,77 @@ class _DesktopShellState extends State<DesktopShell>
     ScaffoldMessenger.of(
       context,
     ).showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  void _handleUpdaterChanged() {
+    final state = _updaterController.value;
+    if (!mounted || !state.hasReadyUpdate) {
+      return;
+    }
+    final promptKey = '${state.readyVersionTag}|${state.readyInstallerPath}';
+    if (_lastUpdatePromptKey == promptKey) {
+      return;
+    }
+    _lastUpdatePromptKey = promptKey;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) {
+        return;
+      }
+      _showUpdateReadyDialog(_updaterController);
+    });
+  }
+
+  Future<void> _showUpdateReadyDialog(UpdaterController controller) async {
+    final state = controller.value;
+    if (!state.hasReadyUpdate) {
+      return;
+    }
+
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          title: Text(
+            tr(
+              context,
+              '发现新版本 ${state.readyVersionTag}',
+              'New version ${state.readyVersionTag}',
+            ),
+          ),
+          content: SelectableText(
+            tr(
+              context,
+              '更新包已准备好：\n${state.readyInstallerPath}',
+              'The update installer is ready:\n${state.readyInstallerPath}',
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () async {
+                await controller.dismissReadyPrompt();
+                if (dialogContext.mounted) {
+                  Navigator.of(dialogContext).pop();
+                }
+              },
+              child: Text(tr(context, '下次启动更新', 'Update next time')),
+            ),
+            FilledButton.icon(
+              onPressed: () async {
+                Navigator.of(dialogContext).pop();
+                final launched = await controller.installPendingUpdateNow(
+                  quitApp: _exitApplication,
+                );
+                if (!launched && mounted) {
+                  await _showInfoMessage(controller.value.statusMessage);
+                }
+              },
+              icon: const Icon(Icons.system_update_alt_rounded),
+              label: Text(tr(context, '立即更新', 'Update now')),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   Future<CloseAction?> _askCloseAction() async {
@@ -316,6 +404,13 @@ class _DesktopShellState extends State<DesktopShell>
           await _showSettings(context, widget.controller);
         }
         return;
+      case 'check_updates':
+        await _restoreWindow();
+        await _updaterController.checkForUpdates();
+        if (mounted && _updaterController.value.statusMessage.isNotEmpty) {
+          await _showInfoMessage(_updaterController.value.statusMessage);
+        }
+        return;
       case 'toggle_theme':
         await widget.controller.toggleTheme();
         return;
@@ -379,7 +474,10 @@ class _DesktopShellState extends State<DesktopShell>
         unawaited(_syncTrayPresentation());
       }
     }
-    return DashboardPage(controller: widget.controller);
+    return DashboardPage(
+      controller: widget.controller,
+      updaterController: _updaterController,
+    );
   }
 }
 
@@ -419,9 +517,14 @@ ThemeData _buildTheme(Brightness brightness) {
 }
 
 class DashboardPage extends StatefulWidget {
-  const DashboardPage({super.key, required this.controller});
+  const DashboardPage({
+    super.key,
+    required this.controller,
+    required this.updaterController,
+  });
 
   final DashboardController controller;
+  final UpdaterController updaterController;
 
   @override
   State<DashboardPage> createState() => _DashboardPageState();
@@ -429,6 +532,20 @@ class DashboardPage extends StatefulWidget {
 
 class _DashboardPageState extends State<DashboardPage> {
   PeerTab selectedPeerTab = PeerTab.online;
+
+  Future<void> _checkForUpdates(BuildContext context) async {
+    await widget.updaterController.checkForUpdates();
+    if (!mounted || !context.mounted) {
+      return;
+    }
+    final message = widget.updaterController.value.statusMessage;
+    if (message.isEmpty) {
+      return;
+    }
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -824,10 +941,37 @@ class _DashboardPageState extends State<DashboardPage> {
                                     iconSize: 22,
                                   ),
                                   const SizedBox(width: 10),
+                                  ValueListenableBuilder<UpdaterState>(
+                                    valueListenable: widget.updaterController,
+                                    builder: (context, updateState, _) {
+                                      final hasReadyUpdate =
+                                          updateState.hasReadyUpdate;
+                                      return _IconCircleButton(
+                                        icon: updateState.isBusy
+                                            ? Icons.downloading_rounded
+                                            : hasReadyUpdate
+                                            ? Icons.system_update_alt_rounded
+                                            : Icons.update_rounded,
+                                        tooltip:
+                                            updateState.statusMessage
+                                                .trim()
+                                                .isEmpty
+                                            ? t('检查更新', 'Check for updates')
+                                            : updateState.statusMessage,
+                                        onPressed: updateState.isBusy
+                                            ? null
+                                            : () => _checkForUpdates(context),
+                                        size: 52,
+                                        iconSize: 22,
+                                      );
+                                    },
+                                  ),
+                                  const SizedBox(width: 10),
                                   _IconCircleButton(
                                     icon: Icons.settings_rounded,
                                     onPressed: () =>
                                         _showSettings(context, controller),
+                                    tooltip: t('设置', 'Settings'),
                                     size: 52,
                                     iconSize: 22,
                                   ),
@@ -1374,12 +1518,14 @@ class _IconCircleButton extends StatelessWidget {
   const _IconCircleButton({
     required this.icon,
     required this.onPressed,
+    this.tooltip,
     this.size = 56,
     this.iconSize = 24,
   });
 
   final IconData icon;
-  final VoidCallback onPressed;
+  final VoidCallback? onPressed;
+  final String? tooltip;
   final double size;
   final double iconSize;
 
@@ -1397,8 +1543,11 @@ class _IconCircleButton extends StatelessWidget {
       ),
       child: IconButton(
         onPressed: onPressed,
+        tooltip: tooltip,
         icon: Icon(icon),
-        color: colorScheme.onSurface,
+        color: onPressed == null
+            ? colorScheme.onSurface.withValues(alpha: 0.38)
+            : colorScheme.onSurface,
         iconSize: iconSize,
         padding: EdgeInsets.all((size - iconSize) / 2),
         constraints: BoxConstraints.tightFor(width: size, height: size),

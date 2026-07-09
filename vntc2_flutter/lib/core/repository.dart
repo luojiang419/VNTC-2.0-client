@@ -11,6 +11,7 @@ class AppPaths {
     required this.profilesDir,
     required this.runtimeRootDir,
     required this.logsDir,
+    required this.updatesDir,
   });
 
   final Directory executableDir;
@@ -19,6 +20,7 @@ class AppPaths {
   final Directory profilesDir;
   final Directory runtimeRootDir;
   final Directory logsDir;
+  final Directory updatesDir;
 
   static Future<AppPaths> detect() async {
     final executableDir = File(Platform.resolvedExecutable).parent;
@@ -27,6 +29,7 @@ class AppPaths {
     final profilesDir = Directory(joinPath(dataDir.path, 'profiles'));
     final runtimeRootDir = Directory(joinPath(dataDir.path, 'runtime'));
     final logsDir = Directory(joinPath(dataDir.path, 'logs'));
+    final updatesDir = Directory(joinPath(dataDir.path, 'updates'));
 
     for (final dir in <Directory>[
       dataDir,
@@ -34,6 +37,7 @@ class AppPaths {
       profilesDir,
       runtimeRootDir,
       logsDir,
+      updatesDir,
     ]) {
       if (!await dir.exists()) {
         await dir.create(recursive: true);
@@ -47,6 +51,7 @@ class AppPaths {
       profilesDir: profilesDir,
       runtimeRootDir: runtimeRootDir,
       logsDir: logsDir,
+      updatesDir: updatesDir,
     );
   }
 

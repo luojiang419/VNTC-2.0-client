@@ -63,6 +63,9 @@ class AppSettings {
     required this.cleanupUnusedTunOnLaunch,
     this.selectedProfileId,
     this.defaultProfileId,
+    this.pendingUpdateVersionTag,
+    this.pendingUpdateInstallerPath,
+    this.dismissedUpdatePromptVersion,
   });
 
   final AppLanguage language;
@@ -74,6 +77,9 @@ class AppSettings {
   final bool cleanupUnusedTunOnLaunch;
   final String? selectedProfileId;
   final String? defaultProfileId;
+  final String? pendingUpdateVersionTag;
+  final String? pendingUpdateInstallerPath;
+  final String? dismissedUpdatePromptVersion;
 
   AppSettings copyWith({
     AppLanguage? language,
@@ -85,8 +91,13 @@ class AppSettings {
     bool? cleanupUnusedTunOnLaunch,
     String? selectedProfileId,
     String? defaultProfileId,
+    String? pendingUpdateVersionTag,
+    String? pendingUpdateInstallerPath,
+    String? dismissedUpdatePromptVersion,
     bool clearSelectedProfileId = false,
     bool clearDefaultProfileId = false,
+    bool clearPendingUpdate = false,
+    bool clearDismissedUpdatePromptVersion = false,
   }) {
     return AppSettings(
       language: language ?? this.language,
@@ -104,6 +115,15 @@ class AppSettings {
       defaultProfileId: clearDefaultProfileId
           ? null
           : defaultProfileId ?? this.defaultProfileId,
+      pendingUpdateVersionTag: clearPendingUpdate
+          ? null
+          : pendingUpdateVersionTag ?? this.pendingUpdateVersionTag,
+      pendingUpdateInstallerPath: clearPendingUpdate
+          ? null
+          : pendingUpdateInstallerPath ?? this.pendingUpdateInstallerPath,
+      dismissedUpdatePromptVersion: clearDismissedUpdatePromptVersion
+          ? null
+          : dismissedUpdatePromptVersion ?? this.dismissedUpdatePromptVersion,
     );
   }
 
@@ -118,6 +138,9 @@ class AppSettings {
       'cleanupUnusedTunOnLaunch': cleanupUnusedTunOnLaunch,
       'selectedProfileId': selectedProfileId,
       'defaultProfileId': defaultProfileId,
+      'pendingUpdateVersionTag': pendingUpdateVersionTag,
+      'pendingUpdateInstallerPath': pendingUpdateInstallerPath,
+      'dismissedUpdatePromptVersion': dismissedUpdatePromptVersion,
     };
   }
 
@@ -133,6 +156,10 @@ class AppSettings {
           json['cleanupUnusedTunOnLaunch'] as bool? ?? false,
       selectedProfileId: json['selectedProfileId'] as String?,
       defaultProfileId: json['defaultProfileId'] as String?,
+      pendingUpdateVersionTag: json['pendingUpdateVersionTag'] as String?,
+      pendingUpdateInstallerPath: json['pendingUpdateInstallerPath'] as String?,
+      dismissedUpdatePromptVersion:
+          json['dismissedUpdatePromptVersion'] as String?,
     );
   }
 

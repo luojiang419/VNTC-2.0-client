@@ -1,14 +1,15 @@
-# VNTC 2.0 Client v1.1.3
+# VNTC 2.0 Client v1.1.5
 
-This patch release adds a safer maintenance option for cleaning unused VNTC virtual TUN adapters and rebuilds the Windows distributable package.
+This release adds in-app GitHub Release updates and rebuilds the Windows distributable package so users can test updating from the local v1.1.4 build to v1.1.5.
 
 ## What’s New
 
-- Added a Settings switch for automatically cleaning unused TUN virtual adapters on launch
-- Runs a one-time cleanup immediately when the switch is first enabled and saved
-- Limits cleanup to VNTC-managed `vntc-*` adapters that are no longer referenced by saved profiles
-- Keeps adapters referenced by current profiles and skips adapters that are currently `Up`
-- Rebuilt the Windows x64 portable package and installer for this update
+- Added automatic startup checks against the latest GitHub Release
+- Added a manual "Check for updates" action in the main toolbar and tray menu
+- Downloads the matching Windows installer asset and keeps it under `data/updates/windows`
+- Prompts users to update immediately or defer the prompt until the next launch
+- Launches the downloaded installer through a small PowerShell handoff script after the app exits
+- Rebuilt the Windows x64 portable package and installer for the update test flow
 
 ## Included Capabilities
 
@@ -16,6 +17,7 @@ This patch release adds a safer maintenance option for cleaning unused VNTC virt
 - Multi-profile management with batch connect / disconnect
 - Automatic unique `tun_name`, `ctrl_port`, and `device_id` allocation per profile
 - Automatic cleanup option for unused VNTC-managed TUN adapters
+- In-app GitHub Release update checks and installer handoff
 - Aggregated online / offline peer view
 - Advanced vnt2 profile editing
 - Tray minimize, close behavior selection, and tray shortcut menu
@@ -23,5 +25,5 @@ This patch release adds a safer maintenance option for cleaning unused VNTC virt
 
 ## Release Assets
 
-- `VNTC-2.0-client-v1.1.3-setup.exe`: Windows installer
-- `VNTC-2.0-client-v1.1.3-win-x64.zip`: portable Windows package
+- `VNTC-2.0-client-v1.1.5-setup.exe`: Windows installer
+- `VNTC-2.0-client-v1.1.5-win-x64.zip`: portable Windows package
