@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>VNTC 2.0 Portal</title>
+    <meta
+      name="description"
+      content="VNTC 2.0 桌面客户端门户网站，展示多配置管理、批量连接、托盘常驻、系统语言自适应与 Windows 下载入口。"
+    />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=Noto+Sans+SC:wght@400;500;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div class="page-shell">
+      <div class="ambient ambient-a"></div>
+      <div class="ambient ambient-b"></div>
+      <div class="ambient-grid"></div>
+      <div class="scroll-progress" aria-hidden="true"></div>
+
+      <header class="topbar glass">
+        <a class="brand" href="#hero" aria-label="VNTC 2.0 首页">
+          <span class="brand-orb"></span>
+          <span class="brand-text">
+            <strong>VNTC 2.0</strong>
+            <small>Desktop Portal</small>
+          </span>
+        </a>
+
+        <nav class="topnav">
+          <a href="#highlights">亮点</a>
+          <a href="#showcase">截图</a>
+          <a href="#downloads">下载</a>
+          <a href="#community">社群</a>
+        </nav>
+
+        <a
+          class="header-link"
+          href="https://github.com/luojiang419/VNTC-2.0-client/releases/tag/v1.0.0"
+          target="_blank"
+          rel="noreferrer"
+        >
+          GitHub Releases
+        </a>
+      </header>
+
+      <main>
+        <section class="hero" id="hero">
+          <div class="hero-copy reveal">
+            <span class="eyebrow glass">Windows · Flutter · Rust Manager · VNT 2.0</span>
+            <h1>
+              VNTc让虚拟组网
+              <span>一键达成</span>
+            </h1>
+            <p class="lead">
+              VNTC 2.0 以多配置统一调度为核心，把连接、监控、切换、托盘常驻和系统语言自适应整合进一个现代化
+              Windows 客户端。
+            </p>
+
+            <div class="hero-actions">
+              <a
+                class="button button-primary"
+                href="https://github.com/luojiang419/VNTC-2.0-client/releases/download/v1.0.0/VNTC-2.0-client-v1.0.0-setup.exe"
+                download
+              >
+                <span>下载安装版</span>
+                <small>.exe</small>
+              </a>
+              <a
+                class="button button-secondary"
+                href="https://github.com/luojiang419/VNTC-2.0-client/releases/download/v1.0.0/VNTC-2.0-client-v1.0.0-win-x64.zip"
+                download
+              >
+                <span>下载便携包</span>
+                <small>.zip</small>
+              </a>
+            </div>
+
+            <div class="hero-pills">
+              <span class="glass">多配置批量连接 / 断开</span>
+              <span class="glass">唯一虚拟网卡自动分配</span>
+              <span class="glass">中文 / English 自适应</span>
+            </div>
+
+            <div class="hero-metrics">
+              <article class="metric glass reveal">
+                <strong data-count="4">0</strong>
+                <span>核心体验模块</span>
+              </article>
+              <article class="metric glass reveal">
+                <strong data-count="2">0</strong>
+                <span>一键下载包类型</span>
+              </article>
+              <article class="metric glass reveal">
+                <strong data-count="800">0</strong>
+                <span>默认桌面窗口宽高</span>
+              </article>
+            </div>
+          </div>
+
+          <div class="hero-visual reveal">
+            <div class="hero-glow"></div>
+            <div class="hero-frame glass tilt-surface">
+              <div class="window-chrome">
+                <span></span>
+                <span></span>
+                <span></span>
+              </div>
+              <img
+                src="./assets/images/hero-home.png"
+                alt="VNTC 2.0 首页界面"
+                class="hero-image"
+              />
+            </div>
+          </div>
+        </section>
+
+        <section class="section" id="highlights">
+          <div class="section-heading reveal">
+            <span class="eyebrow glass">Product Highlights</span>
+            <h2>磨砂玻璃感 + 模块化布局，把复杂网络状态压缩进一个清晰界面</h2>
+            <p>
+              页面延续客户端的暗色霓虹气质，用发光层、玻璃卡片和分区信息架构展示真实能力，而不是普通下载落地页。
+            </p>
+          </div>
+
+          <div class="feature-grid">
+            <article class="feature-card glass reveal tilt-surface">
+              <div class="feature-icon">01</div>
+              <h3>多配置统一调度</h3>
+              <p>在一个客户端中管理多个 VNT 配置，支持勾选后批量连接、批量断开，避免多开实例的混乱。</p>
+            </article>
+
+            <article class="feature-card glass reveal tilt-surface">
+              <div class="feature-icon">02</div>
+              <h3>唯一资源自动绑定</h3>
+              <p>保存配置时自动分配唯一 `tun_name`、`ctrl_port` 与 `device_id`，减少冲突和重复维护。</p>
+            </article>
+
+            <article class="feature-card glass reveal tilt-surface">
+              <div class="feature-icon">03</div>
+              <h3>托盘与静默启动</h3>
+              <p>支持最小化到托盘、关闭询问、开机自启和静默启动，让桌面端长期驻留更自然。</p>
+            </article>
+
+            <article class="feature-card glass reveal tilt-surface">
+              <div class="feature-icon">04</div>
+              <h3>系统语言自动识别</h3>
+              <p>中文系统默认进入中文界面，非中文系统自动进入英文界面，也支持设置页手动切换。</p>
+            </article>
+          </div>
+        </section>
+
+        <section class="section showcase" id="showcase">
+          <div class="section-heading reveal">
+            <span class="eyebrow glass">Interface Showcase</span>
+            <h2>真实界面截图，不靠概念图</h2>
+            <p>直接使用当前项目目录 `软件截图` 中的真实界面作为展示素材，集中呈现首页总览、设置弹窗和高级配置体验。</p>
+          </div>
+
+          <div class="showcase-layout">
+            <article class="showcase-story glass reveal">
+              <h3>从总览到细节，一层层展开</h3>
+              <p>
+                首页负责全局状态聚合，设置弹窗承载系统行为切换，高级配置面板则面向真实组网参数编辑，三者组合后才构成完整的桌面使用体验。
+              </p>
+              <ul class="story-list">
+                <li>顶部大图区直接建立产品识别度</li>
+                <li>截图卡片使用悬浮光效与轻微倾斜响应</li>
+                <li>滚动进入视区时分批显现，增强浏览节奏</li>
+              </ul>
+            </article>
+
+            <div class="gallery-grid">
+              <figure class="shot-card glass reveal tilt-surface spotlight-card">
+                <img src="./assets/images/hero-home.png" alt="首页总览" />
+                <figcaption>
+                  <strong>首页总览</strong>
+                  <span>用首页大图展示客户端的整体视觉风格、汇总状态栏和主工作区结构。</span>
+                </figcaption>
+              </figure>
+
+              <figure class="shot-card glass reveal tilt-surface spotlight-card">
+                <img src="./assets/images/showcase-dashboard.png" alt="主界面仪表盘" />
+                <figcaption>
+                  <strong>主界面仪表盘</strong>
+                  <span>已连接配置、在线离线统计、汇总流量与节点列表集中呈现，适合展示核心使用场景。</span>
+                </figcaption>
+              </figure>
+
+              <figure class="shot-card glass reveal tilt-surface spotlight-card">
+                <img src="./assets/images/showcase-settings.png" alt="设置弹窗" />
+                <figcaption>
+                  <strong>设置弹窗</strong>
+                  <span>展示关闭动作、默认配置、开机自启、静默自启等桌面端系统行为设置。</span>
+                </figcaption>
+              </figure>
+
+              <figure class="shot-card glass reveal tilt-surface spotlight-card">
+                <img src="./assets/images/showcase-advanced.png" alt="高级配置面板" />
+                <figcaption>
+                  <strong>高级配置面板</strong>
+                  <span>真实展示 QUIC、压缩、FEC、NAT、路由和端口映射等进阶参数编辑能力。</span>
+                </figcaption>
+              </figure>
+            </div>
+          </div>
+        </section>
+
+        <section class="section architecture">
+          <div class="section-heading reveal">
+            <span class="eyebrow glass">Architecture</span>
+            <h2>前端视觉与底层调度分层明确</h2>
+          </div>
+
+          <div class="arch-rail">
+            <article class="arch-step glass reveal">
+              <span class="step-no">A</span>
+              <h3>Flutter Windows</h3>
+              <p>提供桌面 UI、交互动效、托盘行为和设置页体验。</p>
+            </article>
+            <article class="arch-step glass reveal">
+              <span class="step-no">B</span>
+              <h3>Rust Manager</h3>
+              <p>统一调度多个配置实例，聚合状态、流量和连接数据。</p>
+            </article>
+            <article class="arch-step glass reveal">
+              <span class="step-no">C</span>
+              <h3>vnt2_cli</h3>
+              <p>承接 VNT 2.0 运行能力，负责底层组网连接和控制。</p>
+            </article>
+          </div>
+        </section>
+
+        <section class="section downloads" id="downloads">
+          <div class="download-panel glass reveal">
+            <div class="download-copy">
+              <span class="eyebrow glass">Download Center</span>
+              <h2>直接下载可运行版本</h2>
+              <p>
+                当前页面按钮已直连 GitHub Release `v1.0.0` 的安装版与便携包。点击后即可开始下载，无需额外跳转查找。
+              </p>
+
+              <div class="download-live">
+                <article class="download-live-card glass">
+                  <span>累计下载</span>
+                  <strong data-download-total>--</strong>
+                  <small>GitHub Release 实时聚合</small>
+                </article>
+                <article class="download-live-card glass">
+                  <span>安装版下载</span>
+                  <strong data-download-setup>--</strong>
+                  <small>.exe 包</small>
+                </article>
+                <article class="download-live-card glass">
+                  <span>便携包下载</span>
+                  <strong data-download-portable>--</strong>
+                  <small>.zip 包</small>
+                </article>
+              </div>
+            </div>
+
+            <div class="download-cards">
+              <a
+                class="download-card glass tilt-surface"
+                href="https://github.com/luojiang419/VNTC-2.0-client/releases/download/v1.0.0/VNTC-2.0-client-v1.0.0-setup.exe"
+                download
+                data-download-asset="VNTC-2.0-client-v1.0.0-setup.exe"
+              >
+                <span class="download-type">Installer</span>
+                <strong>Windows 安装版</strong>
+                <small>VNTC-2.0-client-v1.0.0-setup.exe</small>
+                <div class="download-meta">
+                  <span class="download-badge">实时下载量</span>
+                  <span class="download-count" data-download-count="VNTC-2.0-client-v1.0.0-setup.exe">--</span>
+                </div>
+                <em>适合常规安装部署</em>
+              </a>
+
+              <a
+                class="download-card glass tilt-surface"
+                href="https://github.com/luojiang419/VNTC-2.0-client/releases/download/v1.0.0/VNTC-2.0-client-v1.0.0-win-x64.zip"
+                download
+                data-download-asset="VNTC-2.0-client-v1.0.0-win-x64.zip"
+              >
+                <span class="download-type">Portable</span>
+                <strong>便携压缩包</strong>
+                <small>VNTC-2.0-client-v1.0.0-win-x64.zip</small>
+                <div class="download-meta">
+                  <span class="download-badge">实时下载量</span>
+                  <span class="download-count" data-download-count="VNTC-2.0-client-v1.0.0-win-x64.zip">--</span>
+                </div>
+                <em>解压即可运行</em>
+              </a>
+
+              <a
+                class="download-card glass tilt-surface"
+                href="https://github.com/luojiang419/VNTC-2.0-client/releases/tag/v1.0.0"
+                target="_blank"
+                rel="noreferrer"
+              >
+                <span class="download-type">Release</span>
+                <strong>查看 GitHub 项目页</strong>
+                <small>v1.0.0 发布说明与资产</small>
+                <div class="download-meta">
+                  <span class="download-badge">总下载量</span>
+                  <span class="download-count" data-download-count-total>--</span>
+                </div>
+                <em>打开完整 Releases 页面</em>
+              </a>
+            </div>
+          </div>
+        </section>
+      </main>
+
+      <footer class="footer section" id="community">
+        <div class="footer-grid">
+          <article class="community-card glass reveal">
+            <span class="eyebrow glass">Community</span>
+            <h2>加入 VNT 组网交流</h2>
+            <p>如果你想交流组网配置、桌面客户端体验或后续迭代方向，可以加入 QQ 群继续讨论。</p>
+
+            <div class="community-actions">
+              <button class="button button-secondary copy-button" data-copy="1060550456">
+                复制群号 1060550456
+              </button>
+              <a
+                class="button button-ghost"
+                href="https://github.com/luojiang419/VNTC-2.0-client/releases/tag/v1.0.0"
+                target="_blank"
+                rel="noreferrer"
+              >
+                访问 GitHub
+              </a>
+            </div>
+
+            <div class="community-note">
+              <strong>QQ群：</strong>
+              <span>1060550456</span>
+            </div>
+          </article>
+
+          <article class="qr-card glass reveal">
+            <img src="./assets/images/group-qr.jpg" alt="QQ群二维码" />
+            <div class="qr-copy">
+              <strong>扫一扫二维码，加入群聊</strong>
+              <span>VNT 组网互联交流群 3</span>
+            </div>
+          </article>
+        </div>
+      </footer>
+    </div>
+
+    <script src="./script.js"></script>
+  </body>
+</html>
